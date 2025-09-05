@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Irreverent Warriors Event Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Papa Parse for robust CSV parsing (handles commas/newlines) -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100%; }
+    .popup h3 { margin: 0 0 4px; font-size: 16px; }
+    .popup .meta { font-size: 13px; margin: 2px 0; color: #333; }
+    .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 280px; }
+    .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    // ====== 1) Your published CSV URL (Events tab) ======
+    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/1U-lZFDH6egeqKX5Xi-_BX0BDfgo9ntdROlQ7fkjBw4c/gviz/tq?tqx=out:csv&sheet=Events";
+
+    // ====== 2) Init the map (center USA) ======
+    const map = L.map('map', { scrollWheelZoom: true }).setView([37.8, -96], 4);
+
+    // OpenStreetMap tiles (no API key)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // ====== 3) Load the CSV and add markers ======
+    Papa.parse(SHEET_CSV + "&_ts=" + Date.now(), {  // cache-buster with timestamp
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        const rows = results.data || [];
+        const markers = [];
+        const bounds = [];
+
+        rows.forEach((r) => {
+          const title = r.title?.trim() || "Untitled Event";
+          const start = r.start || "";
+          const end = r.end || "";
+          const location = r.location || "";
+          const link = r.htmlLink || "";
+          const desc = (r.description || "").toString();
+
+          const lat = parseFloat(r.lat);
+          const lng = parseFloat(r.lng);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            const popupHtml =
+              `<div class="popup">
+                 <h3>${escapeHtml(title)}</h3>
+                 <div class="meta"><strong>When:</strong> ${escapeHtml(start)}${end ? " – " + escapeHtml(end) : ""}</div>
+                 ${location ? `<div class="meta"><strong>Where:</strong> ${escapeHtml(location)}</div>` : ""}
+                 ${link ? `<div class="meta"><a href="${encodeURI(link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>` : ""}
+                 ${desc ? `<div class="desc">${escapeHtml(desc)}</div>` : ""}
+               </div>`;
+
+            const m = L.marker([lat, lng]).addTo(map).bindPopup(popupHtml);
+            markers.push(m);
+            bounds.push([lat, lng]);
+          }
+        });
+
+        if (bounds.length) {
+          map.fitBounds(bounds, { padding: [30, 30] });
+        } else {
+          // fallback if no coords yet
+          map.setView([37.8, -96], 4);
+        }
+      },
+      error: function(err) {
+        console.error("CSV load error:", err);
+        alert("Could not load event data. Make sure your sheet tab is published as CSV.");
+      }
+    });
+
+    // Basic HTML escaping for popup content
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
