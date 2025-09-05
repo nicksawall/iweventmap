@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- Papa Parse for robust CSV parsing (handles commas/newlines) -->
+  <!-- Papa Parse (robust CSV parsing) -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
@@ -17,7 +17,7 @@
     #map { height: 100vh; width: 100%; }
     .popup h3 { margin: 0 0 4px; font-size: 16px; }
     .popup .meta { font-size: 13px; margin: 2px 0; color: #333; }
-    .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 280px; }
+    .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 300px; }
     .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
   </style>
 </head>
@@ -25,61 +25,59 @@
   <div id="map"></div>
 
   <script>
-    // ====== 1) Your published CSV URL (Events tab) ======
+    // === Your published CSV (you can swap for export?format=csv&gid=... if you prefer) ===
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
-
-    // ====== 2) Init the map (center USA) ======
+    // Initialize map (center USA by default; will fit to markers after load)
     const map = L.map('map', { scrollWheelZoom: true }).setView([37.8, -96], 4);
-
-    // OpenStreetMap tiles (no API key)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // ====== 3) Load the CSV and add markers ======
-    Papa.parse(SHEET_CSV + "&_ts=" + Date.now(), {  // cache-buster with timestamp
+    // Load CSV and place markers
+    Papa.parse(SHEET_CSV + "&_ts=" + Date.now(), {
       download: true,
       header: true,
       skipEmptyLines: true,
       complete: function(results) {
-        const rows = results.data || [];
-        const markers = [];
+        const rows = (results.data || []).filter(r => r && Object.keys(r).length);
+        console.log("Loaded rows:", rows.length, "Columns:", Object.keys(rows[0] || {}));
+
         const bounds = [];
+        rows.forEach(r => {
+          // Be forgiving about header capitalization
+          const title = (r.title || r.Title || "Untitled Event").toString().trim();
+          const start = (r.start || r.Start || "").toString().trim();
+          const end   = (r.end   || r.End   || "").toString().trim();
+          const where = (r.location || r.Location || "").toString().trim();
+          const link  = (r.htmlLink || r.HtmlLink || r.Link || "").toString().trim();
+          const rawDesc = (r.description || r.Description || "").toString();
 
-        rows.forEach((r) => {
-          const title = r.title?.trim() || "Untitled Event";
-          const start = r.start || "";
-          const end = r.end || "";
-          const location = r.location || "";
-          const link = r.htmlLink || "";
-          const desc = (r.description || "").toString();
+          // lat/lng must be numeric
+          const lat = parseFloat((r.lat || r.Lat || r.Latitude || "").toString().trim());
+          const lng = parseFloat((r.lng || r.Lng || r.Long || r.Longitude || "").toString().trim());
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-          const lat = parseFloat(r.lat);
-          const lng = parseFloat(r.lng);
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            const popupHtml =
-              `<div class="popup">
-                 <h3>${escapeHtml(title)}</h3>
-                 <div class="meta"><strong>When:</strong> ${escapeHtml(start)}${end ? " – " + escapeHtml(end) : ""}</div>
-                 ${location ? `<div class="meta"><strong>Where:</strong> ${escapeHtml(location)}</div>` : ""}
-                 ${link ? `<div class="meta"><a href="${encodeURI(link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>` : ""}
-                 ${desc ? `<div class="desc">${escapeHtml(desc)}</div>` : ""}
-               </div>`;
+          // Build popup (escape first, then linkify)
+          const desc = linkify(escapeHtml(rawDesc));
+          const when = escapeHtml(start) + (end ? " – " + escapeHtml(end) : "");
 
-            const m = L.marker([lat, lng]).addTo(map).bindPopup(popupHtml);
-            markers.push(m);
-            bounds.push([lat, lng]);
-          }
+          const popupHtml =
+            `<div class="popup">
+               <h3>${escapeHtml(title)}</h3>
+               ${when ? `<div class="meta"><strong>When:</strong> ${when}</div>` : ""}
+               ${where ? `<div class="meta"><strong>Where:</strong> ${escapeHtml(where)}</div>` : ""}
+               ${link ? `<div class="meta"><a href="${encodeURI(link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>` : ""}
+               ${rawDesc ? `<div class="desc">${desc}</div>` : ""}
+             </div>`;
+
+          L.marker([lat, lng]).addTo(map).bindPopup(popupHtml);
+          bounds.push([lat, lng]);
         });
 
-        if (bounds.length) {
-          map.fitBounds(bounds, { padding: [30, 30] });
-        } else {
-          // fallback if no coords yet
-          map.setView([37.8, -96], 4);
-        }
+        if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+        else console.warn("No rows with numeric lat/lng found. Check your CSV columns and values.");
       },
       error: function(err) {
         console.error("CSV load error:", err);
@@ -87,13 +85,18 @@
       }
     });
 
-    // Basic HTML escaping for popup content
+    // Helpers
     function escapeHtml(str) {
       return String(str)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
+    }
+    function linkify(text) {
+      if (!text) return "";
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
     }
   </script>
 </body>
