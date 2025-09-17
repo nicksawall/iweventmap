@@ -13,14 +13,11 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text)}
   .wrap{max-width:1200px;margin:0 auto;padding:1rem}
-  .toolbar{display:grid;grid-template-columns:1fr auto;gap:var(--gap);align-items:center;margin-bottom:.75rem}
-  .toolbar h2{margin:0;font-size:clamp(1.2rem,1.8vw,1.6rem)}
-  .filters{display:flex;gap:.5rem;flex-wrap:wrap}
-  .filters input,.filters select{border:1px solid var(--border);border-radius:8px;padding:.55rem .7rem;font-size:.95rem}
+  h2{margin:0 0 1rem;font-size:clamp(1.2rem,1.8vw,1.6rem)}
   .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap)}
   @media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media (max-width:640px){.grid{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr}}
-  .card{border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);background:#fff;overflow:clip;display:grid;grid-template-rows:auto 1fr auto;scroll-margin:80px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  .card{border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);background:#fff;overflow:clip;display:grid;grid-template-rows:auto 1fr auto}
   .card .top{display:flex;align-items:center;gap:.8rem;padding:.9rem .9rem .2rem}
   .date-badge{border:1px solid var(--border);border-radius:10px;padding:.4rem .6rem;text-align:center;min-width:64px;line-height:1.1}
   .date-badge .mon{font-size:.7rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
@@ -34,64 +31,37 @@
   .btn{appearance:none;text-decoration:none;border:1px solid var(--border);padding:.55rem .75rem;border-radius:10px;font-weight:600;font-size:.95rem;color:var(--text);background:#fff}
   .btn.primary{border-color:var(--accent);background:var(--accent);color:#fff}
   .empty{color:var(--muted);text-align:center;padding:2rem 0}
-  .pill{font-size:.75rem;color:#fff;background:#5e6470;border-radius:999px;padding:.2rem .5rem}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="toolbar">
-    <h2>Upcoming Irreverent Warriors Events</h2>
-    <div class="filters">
-      <input id="search" type="search" placeholder="Search title or location…"/>
-      <select id="region"><option value="">All Regions</option></select>
-    </div>
-  </div>
-
+  <h2>Upcoming Irreverent Warriors Events</h2>
   <div id="events" class="grid" aria-live="polite"></div>
-  <div id="empty" class="empty" hidden>No upcoming events match your filters.</div>
+  <div id="empty" class="empty" hidden>No upcoming events found.</div>
 </div>
 
 <script>
   // ===== CONFIG =====
-  // Use the SAME published CSV as your map:
   const FEED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
-  // IMPORTANT: This version expects a single combined "Location" column (e.g., "Memphis, TN, USA")
+  // Expected headers in your sheet
   const FIELDS = {
     title: "Title",
     start: "Start",
     end:   "End",
-    location: "Location",    // <-- combined City, State, Country
+    location: "Location",   // combined City, State, Country
     url:   "URL",
     desc:  "Description"
   };
 
   // ===== UTIL =====
-  const $ = s => document.querySelector(s);
-  const grid = $("#events"), empty = $("#empty");
-  const search = $("#search"), regionSel = $("#region");
-
-  // Basic date parsing; if your dates vary a lot, tell me and I'll drop in a stronger parser
+  const grid = document.getElementById("events"), empty = document.getElementById("empty");
   const toDate = v => { if(!v) return null; const d=new Date(v); return isNaN(d)?null:d; };
   const fmtPieces = d => ({ mon: d.toLocaleString([], {month:"short"}), day: d.getDate(), time: d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) });
   const isUpcoming = (s,e)=>{ const now=new Date(); if(e) return e>=now; return s >= new Date(now.getFullYear(),now.getMonth(),now.getDate()); };
   const escapeHtml = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const slug = s => String(s||"event").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
   const linkify = t => escapeHtml(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
-
-  // Derive a "region" for filtering: US -> 2-letter state; otherwise -> country.
-  const US_STATES = new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
-  function deriveRegion(location){
-    if(!location) return "";
-    const parts = String(location).split(",").map(s=>s.trim()).filter(Boolean);
-    // Try to find a 2-letter US state token
-    for (const p of parts){
-      const up = p.toUpperCase();
-      if (US_STATES.has(up)) return up;
-    }
-    // Else use last token as country
-    return parts.length ? parts[parts.length-1] : "";
-  }
 
   const makeICS = (ev)=>{
     const dt = d=>d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z");
@@ -104,30 +74,27 @@
     return "data:text/calendar;charset=utf-8,"+encodeURIComponent(lines);
   };
 
-  // ===== LIST =====
-  let ALL = [];
-  function render(list){
-    grid.innerHTML = "";
-    if (!list.length){ empty.hidden=false; notifySize(); return; }
+  // ===== RENDER =====
+  function render(events){
+    grid.innerHTML="";
+    if(!events.length){ empty.hidden=false; return; }
     empty.hidden=true;
-
-    const frag = document.createDocumentFragment();
-    list.forEach(ev=>{
+    const frag=document.createDocumentFragment();
+    events.forEach(ev=>{
       const {mon,day,time}=fmtPieces(ev.startDate);
-      const card = document.createElement("article");
+      const card=document.createElement("article");
       card.className="card";
-      card.innerHTML = `
+      card.innerHTML=`
         <div class="top">
           <div class="date-badge" aria-label="${ev.startDate.toDateString()}">
             <div class="mon">${mon}</div><div class="day">${day}</div>
           </div>
           <div>
             <div class="title">${escapeHtml(ev.title||"Untitled Event")}</div>
-            <div><span class="pill">${escapeHtml(ev.region || "—")}</span></div>
           </div>
         </div>
         <div class="meta">
-          <div class="loc">${escapeHtml(ev.location || "TBA")}</div>
+          <div class="loc">${escapeHtml(ev.location||"TBA")}</div>
           <div class="time">${time}</div>
         </div>
         ${ev.desc?`<div class="desc">${linkify(ev.desc)}</div>`:""}
@@ -141,65 +108,40 @@
     notifySize();
   }
 
-  function addRegionsToFilter(events){
-    const regions=[...new Set(events.map(e=>e.region).filter(Boolean))].sort();
-    for(const r of regions){ const opt=document.createElement("option"); opt.value=r; opt.textContent=r; regionSel.appendChild(opt); }
-  }
-
-  function applyFilters(){
-    const q = search.value.trim().toLowerCase();
-    const rg = regionSel.value;
-    const out = ALL.filter(ev=>{
-      const inRegion = !rg || ev.region===rg;
-      const text=(ev.title+" "+(ev.location||"")+" "+(ev.desc||"")).toLowerCase();
-      const inQuery = !q || text.includes(q);
-      return inRegion && inQuery;
-    });
-    render(out);
-  }
-
-  // ===== AUTOSIZE (for iframe embeds) =====
+  // ===== AUTOSIZE for iframe =====
   function notifySize(){
-    const h = document.documentElement.scrollHeight || document.body.scrollHeight;
-    window.parent?.postMessage({type:"IW_EMBED_HEIGHT", id:"iw-list", height:h}, "*");
+    const h=document.documentElement.scrollHeight||document.body.scrollHeight;
+    window.parent?.postMessage({type:"IW_EMBED_HEIGHT",id:"iw-list",height:h},"*");
   }
   new ResizeObserver(()=>notifySize()).observe(document.body);
-  window.addEventListener("load", ()=> setTimeout(notifySize, 50));
+  window.addEventListener("load",()=>setTimeout(notifySize,50));
 
-  // ===== LOAD =====
-  window.addEventListener("load", ()=>{
-    Papa.parse(FEED_URL, {
-      download:true, header:true, skipEmptyLines:true,
+  // ===== LOAD DATA =====
+  window.addEventListener("load",()=>{
+    Papa.parse(FEED_URL,{
+      download:true,header:true,skipEmptyLines:true,
       complete:(res)=>{
-        const rows=res.data, events=[];
-        for(const r of rows){
-          const start = toDate(r[FIELDS.start]);
-          const end   = toDate(r[FIELDS.end]);
+        const events=[];
+        for(const r of res.data){
+          const start=toDate(r[FIELDS.start]);
+          const end=toDate(r[FIELDS.end]);
           if(!start) continue;
-          if(!isUpcoming(start, end)) continue;
-
-          const ev = {
-            title: r[FIELDS.title] || "",
-            location: r[FIELDS.location] || "",
-            region: deriveRegion(r[FIELDS.location] || ""),
-            url: r[FIELDS.url] || "",
-            desc: r[FIELDS.desc] || "",
-            startDate: start,
-            endDate: end
+          if(!isUpcoming(start,end)) continue;
+          const ev={
+            title:r[FIELDS.title]||"",
+            location:r[FIELDS.location]||"",
+            url:r[FIELDS.url]||"",
+            desc:r[FIELDS.desc]||"",
+            startDate:start,endDate:end
           };
-          ev.addIcs = makeICS(ev);
+          ev.addIcs=makeICS(ev);
           events.push(ev);
         }
         events.sort((a,b)=>a.startDate-b.startDate);
-        ALL=events;
-        addRegionsToFilter(ALL);
-        render(ALL);
+        render(events);
       },
-      error:(err)=>{ console.error(err); empty.hidden=false; empty.textContent="Could not load events. Check the CSV publish link."; notifySize(); }
+      error:(err)=>{console.error(err);empty.hidden=false;empty.textContent="Could not load events.";notifySize();}
     });
-
-    search.addEventListener("input", applyFilters);
-    regionSel.addEventListener("change", applyFilters);
   });
 </script>
 </body>
