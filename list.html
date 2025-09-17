@@ -42,8 +42,8 @@
   <div class="toolbar">
     <h2>Upcoming Irreverent Warriors Events</h2>
     <div class="filters">
-      <input id="search" type="search" placeholder="Search city, title…"/>
-      <select id="state"><option value="">All States</option></select>
+      <input id="search" type="search" placeholder="Search title or location…"/>
+      <select id="region"><option value="">All Regions</option></select>
     </div>
   </div>
 
@@ -56,26 +56,42 @@
   // Use the SAME published CSV as your map:
   const FEED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
-  // If your headers differ, update these names to match the sheet exactly (case-sensitive)
+  // IMPORTANT: This version expects a single combined "Location" column (e.g., "Memphis, TN, USA")
   const FIELDS = {
-    title: "Title", start: "Start", end: "End",
-    city: "City", state: "State", htmlLink: "URL", description: "Description"
+    title: "Title",
+    start: "Start",
+    end:   "End",
+    location: "Location",    // <-- combined City, State, Country
+    url:   "URL",
+    desc:  "Description"
   };
 
   // ===== UTIL =====
   const $ = s => document.querySelector(s);
   const grid = $("#events"), empty = $("#empty");
-  const search = $("#search"), stateSel = $("#state");
+  const search = $("#search"), regionSel = $("#region");
 
+  // Basic date parsing; if your dates vary a lot, tell me and I'll drop in a stronger parser
   const toDate = v => { if(!v) return null; const d=new Date(v); return isNaN(d)?null:d; };
   const fmtPieces = d => ({ mon: d.toLocaleString([], {month:"short"}), day: d.getDate(), time: d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) });
-  const isUpcoming = ()=> true; //debug: show everything
-
-  const escapeHtml = s => String(s||"")
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const isUpcoming = (s,e)=>{ const now=new Date(); if(e) return e>=now; return s >= new Date(now.getFullYear(),now.getMonth(),now.getDate()); };
+  const escapeHtml = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const slug = s => String(s||"event").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
   const linkify = t => escapeHtml(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+
+  // Derive a "region" for filtering: US -> 2-letter state; otherwise -> country.
+  const US_STATES = new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
+  function deriveRegion(location){
+    if(!location) return "";
+    const parts = String(location).split(",").map(s=>s.trim()).filter(Boolean);
+    // Try to find a 2-letter US state token
+    for (const p of parts){
+      const up = p.toUpperCase();
+      if (US_STATES.has(up)) return up;
+    }
+    // Else use last token as country
+    return parts.length ? parts[parts.length-1] : "";
+  }
 
   const makeICS = (ev)=>{
     const dt = d=>d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z");
@@ -107,11 +123,11 @@
           </div>
           <div>
             <div class="title">${escapeHtml(ev.title||"Untitled Event")}</div>
-            <div><span class="pill">${escapeHtml(ev.state||"—")}</span></div>
+            <div><span class="pill">${escapeHtml(ev.region || "—")}</span></div>
           </div>
         </div>
         <div class="meta">
-          <div class="loc">${escapeHtml([ev.city,ev.state].filter(Boolean).join(", ")||"TBA")}</div>
+          <div class="loc">${escapeHtml(ev.location || "TBA")}</div>
           <div class="time">${time}</div>
         </div>
         ${ev.desc?`<div class="desc">${linkify(ev.desc)}</div>`:""}
@@ -125,19 +141,19 @@
     notifySize();
   }
 
-  function addStatesToFilter(events){
-    const states=[...new Set(events.map(e=>e.state).filter(Boolean))].sort();
-    for(const s of states){ const opt=document.createElement("option"); opt.value=s; opt.textContent=s; stateSel.appendChild(opt); }
+  function addRegionsToFilter(events){
+    const regions=[...new Set(events.map(e=>e.region).filter(Boolean))].sort();
+    for(const r of regions){ const opt=document.createElement("option"); opt.value=r; opt.textContent=r; regionSel.appendChild(opt); }
   }
 
   function applyFilters(){
     const q = search.value.trim().toLowerCase();
-    const st = stateSel.value;
+    const rg = regionSel.value;
     const out = ALL.filter(ev=>{
-      const inState = !st || ev.state===st;
-      const text=(ev.title+" "+ev.city+" "+ev.state+" "+(ev.desc||"")).toLowerCase();
+      const inRegion = !rg || ev.region===rg;
+      const text=(ev.title+" "+(ev.location||"")+" "+(ev.desc||"")).toLowerCase();
       const inQuery = !q || text.includes(q);
-      return inState && inQuery;
+      return inRegion && inQuery;
     });
     render(out);
   }
@@ -156,29 +172,34 @@
       download:true, header:true, skipEmptyLines:true,
       complete:(res)=>{
         const rows=res.data, events=[];
-        console.log("CSV rows:", rows.length, rows[0]);
         for(const r of rows){
-          const ev={
-            title:r[FIELDS.title]||"", city:r[FIELDS.city]||"", state:r[FIELDS.state]||"",
-            url:r[FIELDS.url]||"", desc:r[FIELDS.desc]||"",
-            startDate: toDate(r[FIELDS.start]), endDate: toDate(r[FIELDS.end]),
+          const start = toDate(r[FIELDS.start]);
+          const end   = toDate(r[FIELDS.end]);
+          if(!start) continue;
+          if(!isUpcoming(start, end)) continue;
+
+          const ev = {
+            title: r[FIELDS.title] || "",
+            location: r[FIELDS.location] || "",
+            region: deriveRegion(r[FIELDS.location] || ""),
+            url: r[FIELDS.url] || "",
+            desc: r[FIELDS.desc] || "",
+            startDate: start,
+            endDate: end
           };
-          if(!ev.startDate) continue;
-          if(!isUpcoming(ev.startDate, ev.endDate)) continue;
-          ev.location=[ev.city,ev.state].filter(Boolean).join(", ");
           ev.addIcs = makeICS(ev);
           events.push(ev);
         }
         events.sort((a,b)=>a.startDate-b.startDate);
         ALL=events;
-        addStatesToFilter(ALL);
+        addRegionsToFilter(ALL);
         render(ALL);
       },
       error:(err)=>{ console.error(err); empty.hidden=false; empty.textContent="Could not load events. Check the CSV publish link."; notifySize(); }
     });
 
     search.addEventListener("input", applyFilters);
-    stateSel.addEventListener("change", applyFilters);
+    regionSel.addEventListener("change", applyFilters);
   });
 </script>
 </body>
