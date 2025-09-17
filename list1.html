@@ -39,37 +39,18 @@
 </div>
 
 <script>
-  // ===== CONFIG =====
-  // Use the SAME published CSV URL as your map (Publish to web -> CSV for the tab):
   const BASE_FEED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
-  const FEED_URL = BASE_FEED_URL + "&cachebust=" + Date.now(); // bypass cache
+  const FEED_URL = BASE_FEED_URL + "&cachebust=" + Date.now();
 
-  // Your lowercase headers
-  const FIELDS = {
-    id: "eventId",
-    title: "title",
-    start: "start",
-    end:   "end",
-    location: "location",
-    url:   "htmlLink",
-    desc:  "description",
-    lat:   "lat",    // not used in list, but here for clarity
-    lng:   "lng"     // not used in list
-  };
-
-  // ===== UTIL =====
   const grid = document.getElementById("events");
   const empty = document.getElementById("empty");
   const debug = document.getElementById("debug");
 
-  // Robust date parser: ISO, US (M/D/YYYY HH:MM [AM/PM]), date-only (D-M-YYYY / D.M.YYYY)
   function toDate(v){
     if (!v) return null;
     let d = new Date(v);
     if (!isNaN(d)) return d;
     const s = String(v).trim();
-
-    // US: M/D/YYYY [HH:MM] [AM|PM]
     let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?:\s*(AM|PM))?)?$/i);
     if (m){
       let [, M, D, Y, h="0", min="0", ap] = m;
@@ -82,7 +63,6 @@
       d = new Date(Y, M-1, D, h, min);
       if (!isNaN(d)) return d;
     }
-    // Date-only D-M-YYYY or D.M.YYYY
     m = s.match(/^(\d{1,2})[.-](\d{1,2})[.-](\d{4})$/);
     if (m){
       const [, D, M, Y] = m.map(Number);
@@ -92,11 +72,11 @@
     return null;
   }
 
-  const fmtPieces = d => ({
+  function fmtPieces(d){ return {
     mon: d.toLocaleString([], {month:"short"}),
     day: d.getDate(),
     time: d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})
-  });
+  };}
 
   function isUpcoming(start, end){
     const now = new Date();
@@ -105,18 +85,16 @@
     return start >= today;
   }
 
-  const escapeHtml = s => String(s||"")
+  function escapeHtml(s){ return String(s||"")
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 
-  const slug = s => String(s||"event")
-    .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+  function slug(s){ return String(s||"event").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,""); }
 
-  const linkify = t => escapeHtml(t).replace(
-    /(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>'
-  );
+  function linkify(t){ return escapeHtml(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>'); }
 
   function makeICS(ev){
+    if (!ev || !ev.startDate || isNaN(ev.startDate)) return "";
     const dt = d=>d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z");
     const uid = (ev.id ? ev.id : `${Date.now()}-${Math.random().toString(36).slice(2)}`) + "@irreverentwarriors.com";
     const lines = [
@@ -132,15 +110,10 @@
     return "data:text/calendar;charset=utf-8,"+encodeURIComponent(lines);
   }
 
-  // ===== RENDER =====
   function render(events){
     grid.innerHTML = "";
-    if (!events.length){
-      empty.hidden = false;
-      return;
-    }
+    if (!events.length){ empty.hidden = false; return; }
     empty.hidden = true;
-
     const frag = document.createDocumentFragment();
     for (const ev of events){
       const {mon,day,time} = fmtPieces(ev.startDate);
@@ -160,7 +133,7 @@
         ${ev.desc?`<div class="desc">${linkify(ev.desc)}</div>`:""}
         <div class="actions">
           ${ev.url?`<a class="btn primary" href="${ev.url}" target="_blank" rel="noopener">Event Details</a>`:""}
-          <a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>
+          ${ev.addIcs?`<a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>`:""}
         </div>`;
       frag.appendChild(card);
     }
@@ -168,7 +141,6 @@
     notifySize();
   }
 
-  // ===== AUTOSIZE for iframe =====
   function notifySize(){
     const h = document.documentElement.scrollHeight || document.body.scrollHeight;
     window.parent?.postMessage({type:"IW_EMBED_HEIGHT", id:"iw-list", height:h}, "*");
@@ -176,7 +148,6 @@
   new ResizeObserver(()=>notifySize()).observe(document.body);
   window.addEventListener("load", ()=> setTimeout(notifySize, 50));
 
-  // ===== LOAD DATA =====
   window.addEventListener("load", ()=>{
     Papa.parse(FEED_URL, {
       download:true, header:true, skipEmptyLines:true,
@@ -184,43 +155,41 @@
         console.log("CSV rows:", res.data.length, "first row:", res.data[0]);
         const rows = res.data || [];
         if (!rows.length){
-          showDebug("No rows returned. Check Publish-to-web CSV URL and tab.");
-          showEmpty(); return;
+          console.warn("No rows returned from CSV.");
+          empty.hidden = false; notifySize(); return;
         }
-        const all = rows.map(r=>{
-          const start = toDate(r[FIELDS.start]);
-          const end   = toDate(r[FIELDS.end]);
+
+        const all = [];
+        for (const r of rows){
+          const start = toDate(r["start"]);
+          const end   = toDate(r["end"]);
           const ev = {
-            id:   r[FIELDS.id]   || "",
-            title:r[FIELDS.title]|| "",
-            location:r[FIELDS.location]|| "",
-            url:  r[FIELDS.url]  || "",
-            desc: r[FIELDS.desc] || "",
+            id:   r["eventId"] || "",
+            title:r["title"]   || "",
+            location:r["location"] || "",
+            url:  r["htmlLink"]|| "",
+            desc: r["description"] || "",
             startDate:start, endDate:end
           };
-          ev.addIcs = ev.startDate ? makeICS(ev) : "";
-          return ev;
-        });
-
-        const upcoming = all.filter(e => e.startDate && isUpcoming(e.startDate, e.endDate));
-        console.log("Parsed:", all.length, "Upcoming:", upcoming.length);
-        if (all.length > 0 && upcoming.length === 0){
-          showDebug("Loaded "+all.length+" rows but 0 upcoming events. Likely date format mismatch in 'start'/'end'.");
+          if (!ev.startDate || isNaN(ev.startDate)) {
+            console.warn("Skipping row with invalid start:", r);
+            continue;
+          }
+          ev.addIcs = makeICS(ev);
+          all.push(ev);
         }
 
+        const upcoming = all.filter(e => isUpcoming(e.startDate, e.endDate));
+        console.log("Parsed:", all.length, "Upcoming:", upcoming.length);
         upcoming.sort((a,b)=>a.startDate - b.startDate);
         render(upcoming);
       },
       error:(err)=>{
         console.error("CSV error:", err);
-        showDebug("CSV error: " + (err && err.message ? err.message : JSON.stringify(err)));
-        showEmpty();
+        empty.hidden = false; notifySize();
       }
     });
   });
-
-  function showEmpty(){ empty.hidden = false; notifySize(); }
-  function showDebug(msg){ debug.hidden = false; debug.textContent = msg; }
 </script>
 </body>
 </html>
