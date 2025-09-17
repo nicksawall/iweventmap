@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IW Event List (Embed)</title>
+
+<!-- CSV parser -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js" defer></script>
+
+<style>
+  :root{--gap:1rem;--border:#e8ebf0;--muted:#5e6470;--text:#1c1d20;--accent:#b40000;--radius:12px;--shadow:0 6px 16px rgba(0,0,0,.06)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text)}
+  .wrap{max-width:1200px;margin:0 auto;padding:1rem}
+  .toolbar{display:grid;grid-template-columns:1fr auto;gap:var(--gap);align-items:center;margin-bottom:.75rem}
+  .toolbar h2{margin:0;font-size:clamp(1.2rem,1.8vw,1.6rem)}
+  .filters{display:flex;gap:.5rem;flex-wrap:wrap}
+  .filters input,.filters select{border:1px solid var(--border);border-radius:8px;padding:.55rem .7rem;font-size:.95rem}
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap)}
+  @media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr}}
+  .card{border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);background:#fff;overflow:clip;display:grid;grid-template-rows:auto 1fr auto;scroll-margin:80px}
+  .card .top{display:flex;align-items:center;gap:.8rem;padding:.9rem .9rem .2rem}
+  .date-badge{border:1px solid var(--border);border-radius:10px;padding:.4rem .6rem;text-align:center;min-width:64px;line-height:1.1}
+  .date-badge .mon{font-size:.7rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+  .date-badge .day{font-size:1.2rem;font-weight:700}
+  .title{font-weight:700;font-size:1.05rem;line-height:1.25}
+  .meta{padding:.2rem .9rem .9rem;color:var(--muted);font-size:.92rem;display:grid;gap:.25rem}
+  .meta .loc::before{content:"📍 "}
+  .meta .time::before{content:"🕒 "}
+  .desc{padding:0 .9rem .9rem;color:#2b2f36;font-size:.95rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .actions{display:flex;gap:.5rem;padding:.9rem;border-top:1px solid var(--border);background:#fafbfc;flex-wrap:wrap}
+  .btn{appearance:none;text-decoration:none;border:1px solid var(--border);padding:.55rem .75rem;border-radius:10px;font-weight:600;font-size:.95rem;color:var(--text);background:#fff}
+  .btn.primary{border-color:var(--accent);background:var(--accent);color:#fff}
+  .empty{color:var(--muted);text-align:center;padding:2rem 0}
+  .pill{font-size:.75rem;color:#fff;background:#5e6470;border-radius:999px;padding:.2rem .5rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toolbar">
+    <h2>Upcoming Irreverent Warriors Events</h2>
+    <div class="filters">
+      <input id="search" type="search" placeholder="Search city, title…"/>
+      <select id="state"><option value="">All States</option></select>
+    </div>
+  </div>
+
+  <div id="events" class="grid" aria-live="polite"></div>
+  <div id="empty" class="empty" hidden>No upcoming events match your filters.</div>
+</div>
+
+<script>
+  // ===== CONFIG =====
+  // Use the SAME published CSV as your map:
+  const FEED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
+
+  // If your headers differ, update these names to match the sheet exactly (case-sensitive)
+  const FIELDS = {
+    title: "Title", start: "Start", end: "End",
+    city: "City", state: "State", url: "URL", desc: "Description"
+  };
+
+  // ===== UTIL =====
+  const $ = s => document.querySelector(s);
+  const grid = $("#events"), empty = $("#empty");
+  const search = $("#search"), stateSel = $("#state");
+
+  const toDate = v => { if(!v) return null; const d=new Date(v); return isNaN(d)?null:d; };
+  const fmtPieces = d => ({ mon: d.toLocaleString([], {month:"short"}), day: d.getDate(), time: d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) });
+  const isUpcoming = (s,e)=>{ const now=new Date(); if(e) return e>=now; return s >= new Date(now.getFullYear(),now.getMonth(),now.getDate()); };
+
+  const escapeHtml = s => String(s||"")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const slug = s => String(s||"event").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+  const linkify = t => escapeHtml(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+
+  const makeICS = (ev)=>{
+    const dt = d=>d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z");
+    const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@irreverentwarriors.com`;
+    const lines = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Irreverent Warriors//Events//EN","BEGIN:VEVENT",
+      `UID:${uid}`,`DTSTAMP:${dt(new Date())}`,`DTSTART:${dt(ev.startDate)}`, ev.endDate?`DTEND:${dt(ev.endDate)}`:null,
+      `SUMMARY:${(ev.title||"IW Event").replace(/\n/g," ")}`, ev.url?`URL:${ev.url}`:null,
+      ev.location?`LOCATION:${ev.location.replace(/\n/g," ")}`:null, ev.desc?`DESCRIPTION:${ev.desc.replace(/\n/g," ")}`:null,
+      "END:VEVENT","END:VCALENDAR"].filter(Boolean).join("\r\n");
+    return "data:text/calendar;charset=utf-8,"+encodeURIComponent(lines);
+  };
+
+  // ===== LIST =====
+  let ALL = [];
+  function render(list){
+    grid.innerHTML = "";
+    if (!list.length){ empty.hidden=false; notifySize(); return; }
+    empty.hidden=true;
+
+    const frag = document.createDocumentFragment();
+    list.forEach(ev=>{
+      const {mon,day,time}=fmtPieces(ev.startDate);
+      const card = document.createElement("article");
+      card.className="card";
+      card.innerHTML = `
+        <div class="top">
+          <div class="date-badge" aria-label="${ev.startDate.toDateString()}">
+            <div class="mon">${mon}</div><div class="day">${day}</div>
+          </div>
+          <div>
+            <div class="title">${escapeHtml(ev.title||"Untitled Event")}</div>
+            <div><span class="pill">${escapeHtml(ev.state||"—")}</span></div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="loc">${escapeHtml([ev.city,ev.state].filter(Boolean).join(", ")||"TBA")}</div>
+          <div class="time">${time}</div>
+        </div>
+        ${ev.desc?`<div class="desc">${linkify(ev.desc)}</div>`:""}
+        <div class="actions">
+          ${ev.url?`<a class="btn primary" href="${ev.url}" target="_blank" rel="noopener">Event Details</a>`:""}
+          <a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>
+        </div>`;
+      frag.appendChild(card);
+    });
+    grid.appendChild(frag);
+    notifySize();
+  }
+
+  function addStatesToFilter(events){
+    const states=[...new Set(events.map(e=>e.state).filter(Boolean))].sort();
+    for(const s of states){ const opt=document.createElement("option"); opt.value=s; opt.textContent=s; stateSel.appendChild(opt); }
+  }
+
+  function applyFilters(){
+    const q = search.value.trim().toLowerCase();
+    const st = stateSel.value;
+    const out = ALL.filter(ev=>{
+      const inState = !st || ev.state===st;
+      const text=(ev.title+" "+ev.city+" "+ev.state+" "+(ev.desc||"")).toLowerCase();
+      const inQuery = !q || text.includes(q);
+      return inState && inQuery;
+    });
+    render(out);
+  }
+
+  // ===== AUTOSIZE (for iframe embeds) =====
+  function notifySize(){
+    const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+    window.parent?.postMessage({type:"IW_EMBED_HEIGHT", id:"iw-list", height:h}, "*");
+  }
+  new ResizeObserver(()=>notifySize()).observe(document.body);
+  window.addEventListener("load", ()=> setTimeout(notifySize, 50));
+
+  // ===== LOAD =====
+  window.addEventListener("load", ()=>{
+    Papa.parse(FEED_URL, {
+      download:true, header:true, skipEmptyLines:true,
+      complete:(res)=>{
+        const rows=res.data, events=[];
+        for(const r of rows){
+          const ev={
+            title:r[FIELDS.title]||"", city:r[FIELDS.city]||"", state:r[FIELDS.state]||"",
+            url:r[FIELDS.url]||"", desc:r[FIELDS.desc]||"",
+            startDate: toDate(r[FIELDS.start]), endDate: toDate(r[FIELDS.end]),
+          };
+          if(!ev.startDate) continue;
+          if(!isUpcoming(ev.startDate, ev.endDate)) continue;
+          ev.location=[ev.city,ev.state].filter(Boolean).join(", ");
+          ev.addIcs = makeICS(ev);
+          events.push(ev);
+        }
+        events.sort((a,b)=>a.startDate-b.startDate);
+        ALL=events;
+        addStatesToFilter(ALL);
+        render(ALL);
+      },
+      error:(err)=>{ console.error(err); empty.hidden=false; empty.textContent="Could not load events. Check the CSV publish link."; notifySize(); }
+    });
+
+    search.addEventListener("input", applyFilters);
+    stateSel.addEventListener("change", applyFilters);
+  });
+</script>
+</body>
+</html>
