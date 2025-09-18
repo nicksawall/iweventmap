@@ -50,19 +50,32 @@ function initMap(){
   document.documentElement.style.height = '100%';
   document.body.style.minHeight = '100vh';
 
-  map = L.map('map',{scrollWheelZoom:true});
+ map = L.map('map', {
+  scrollWheelZoom: true,
+  fadeAnimation: false,
+  zoomAnimation: false,
+  markerZoomAnimation: false
+});
   map.zoomControl.setPosition('bottomright');
 
   // Single, reliable CARTO basemap
   const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors & CARTO'
-  }).addTo(map);
-  carto.on('load', ()=>console.log('Basemap tiles loaded (CARTO).'));
-  carto.on('tileerror', (e)=>console.warn('Tile error (CARTO):', e));
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors & CARTO',
+  opacity: 1,
+  updateWhenIdle: false,     // paint during movement
+  updateWhenZooming: false,  // no fade-in cycle
+  keepBuffer: 2              // keep tiles around during view changes
+}).addTo(map);
+carto.on('load', ()=>console.log('Basemap tiles loaded (CARTO).'));
+carto.on('tileload', ()=>console.log('Tile loaded.'));
+carto.on('tileerror', (e)=>console.warn('Tile error (CARTO):', e));
+
 
   // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
+setTimeout(()=>map.invalidateSize(), 50);
+setTimeout(()=>map.invalidateSize(), 300);
 
   // Priority panes (orange > green > gray)
   map.createPane('paneSoon');     map.getPane('paneSoon').style.zIndex = 650;
