@@ -14,49 +14,57 @@
 
   <style>
     html, body { height: 100%; margin: 0; }
-    #app { display: grid; grid-template-columns: 380px 1fr; gap: 0; height: 100vh; transition: grid-template-columns .25s ease; }
+    #app { display: grid; grid-template-columns: 360px 1fr; gap: 0; height: 100vh; transition: grid-template-columns .25s ease; }
     #app.collapsed { grid-template-columns: 0px 1fr; }
-    #sidebar { border-right: 1px solid #e5e5e5; padding: 12px; overflow: auto; transition: opacity .2s ease; }
+    #sidebar { border-right: 1px solid #e5e5e5; padding: 10px; overflow: auto; transition: opacity .2s ease; }
     #app.collapsed #sidebar { opacity: 0; pointer-events: none; }
-    #map { height: 100vh; width: 100%; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
-    .topbar .left { display: flex; align-items: center; gap: 8px; }
-    .controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
-    .row { display: flex; gap: 8px; align-items: center; }
-    .controls button, .controls input, .controls select { padding: 6px 10px; font-size: 14px; }
-    .legend { display: flex; gap: 12px; font-size: 13px; margin: 8px 0 12px; flex-wrap: wrap; align-items: center; }
+    #map { position: relative; height: 100vh; width: 100%; }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
+    .legend { display: flex; gap: 10px; font-size: 12.5px; margin: 6px 0 10px; flex-wrap: wrap; align-items: center; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+    .controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+    .row { display: flex; gap: 6px; align-items: center; }
+    /* Smaller, tighter controls */
+    .controls button, .controls input, .controls select {
+      padding: 4px 8px; font-size: 13px; line-height: 1.25; border: 1px solid #ddd; border-radius: 6px;
+    }
+    #locBtn, #setLocBtn, #sortSel { font-size: 12.5px; padding: 4px 8px; }
+    #locInput { flex: 1; min-width: 140px; }
+
+    .toggle-btn { padding: 4px 8px; font-size: 13px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; border-radius: 6px; }
     .item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; }
     .item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
-    .meta { font-size: 13px; color: #444; }
+    .meta { font-size: 12.5px; color: #444; }
+
     .popup h3 { margin: 0 0 4px; font-size: 16px; }
     .popup .meta { font-size: 13px; margin: 2px 0; color: #333; }
     .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 320px; }
     .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    .toggle-btn { padding: 6px 10px; font-size: 14px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; border-radius: 6px; }
-    label.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none; }
+
+    /* Floating “List” toggle — always visible */
+    #toggleListFloating {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 1002;        /* above Leaflet controls */
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      background: #ffffffcc;
+      backdrop-filter: blur(4px);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
     @media (max-width: 900px) {
       #app { grid-template-columns: 1fr; }
       #app.collapsed { grid-template-columns: 1fr; }
       #sidebar { height: 48vh; opacity: 1 !important; pointer-events: auto !important; }
       #map { height: 52vh; }
-      map.zoomControl.setPosition('bottomright');
-
-      /* Floating toggle that stays visible even when the list is collapsed */
-#toggleListFloating {
-  position: absolute;
-  top: 70px;
-  left: 12px;
-  z-index: 1000;           /* above the map */
-  padding: 8px 10px;
-  font-size: 14px;
-  border: 1px solid #ddd;
-  background: #ffffffcc;   /* slight transparency */
-  backdrop-filter: blur(4px);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
+      /* Mobile bonus: comfy tap target & small nudge */
+      #toggleListFloating { top: 10px; left: 10px; padding: 10px 12px; font-size: 15px; }
     }
   </style>
 </head>
@@ -64,9 +72,7 @@
   <div id="app">
     <aside id="sidebar">
       <div class="topbar">
-        <div class="left">
-          <button id="collapseBtn" class="toggle-btn" title="Collapse/Expand list">☰ Toggle List</button>
-        </div>
+        <button id="collapseBtn" class="toggle-btn" title="Collapse/Expand list">☰ Toggle List</button>
         <!-- Map layer visibility toggles -->
         <div class="legend" id="layerToggles">
           <label class="chk"><input type="checkbox" id="chkPast" checked> <span class="dot" style="background:#9aa0a6;"></span>Past</label>
@@ -78,7 +84,7 @@
       <div class="controls">
         <div class="row">
           <button id="locBtn" title="Use my location">📍 Use My Location</button>
-          <input id="locInput" type="text" placeholder="ZIP or City, State" style="flex:1; min-width:140px;">
+          <input id="locInput" type="text" placeholder="ZIP or City, State">
           <button id="setLocBtn" title="Set location manually">Set Location</button>
         </div>
         <div class="row">
@@ -98,10 +104,11 @@
 
       <div id="list"></div>
     </aside>
-    <div id="map">
-  <button id="toggleListFloating" title="Show/Hide list">☰ List</button>
-</div>
 
+    <div id="map">
+      <!-- Always-visible toggle -->
+      <button id="toggleListFloating" title="Show/Hide list">☰ List</button>
+    </div>
   </div>
 
   <script>
@@ -138,8 +145,9 @@
       const R = 3958.7613; // Earth radius in miles
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*mathSin(dLon/2)**2;
       return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+      function mathSin(v){ return Math.sin(v); } // tiny inline to minify a bit on some CDNs
     }
     function classifyByDate(startISO) {
       const now = new Date();
@@ -155,15 +163,6 @@
       q = q.toLowerCase();
       return ev.title.toLowerCase().includes(q) || (ev.where || '').toLowerCase().includes(q);
     }
-    // Manual geocode via OpenStreetMap Nominatim
-    async function geocodeQuery(q) {
-      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-      if (!res.ok) throw new Error('Geocode HTTP ' + res.status);
-      const arr = await res.json();
-      if (!arr.length) throw new Error('No results for "' + q + '"');
-      return { lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon), label: arr[0].display_name };
-    }
 
     // ---------- Config ----------
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
@@ -173,6 +172,8 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
+    // Option C: move zoom control to bottom-right
+    map.zoomControl.setPosition('bottomright');
 
     // Layer groups for visibility toggles
     const layers = {
@@ -184,31 +185,27 @@
     // ---------- Data & UI state ----------
     let userLoc = null;    // {lat, lng}
     let events = [];       // all events
+
     const appEl     = document.getElementById('app');
     const listEl    = document.getElementById('list');
-    const toggleListFloating = document.getElementById('toggleListFloating');
     const sortSel   = document.getElementById('sortSel');
     const locBtn    = document.getElementById('locBtn');
     const locInput  = document.getElementById('locInput');
     const setLocBtn = document.getElementById('setLocBtn');
     const searchInput = document.getElementById('searchInput');
     const collapseBtn = document.getElementById('collapseBtn');
-    
-
+    const toggleListFloating = document.getElementById('toggleListFloating');
 
     const chkPast   = document.getElementById('chkPast');
     const chkSoon   = document.getElementById('chkSoon');
     const chkFuture = document.getElementById('chkFuture');
 
-    collapseBtn.addEventListener('click', () => {
+    const toggleList = () => {
       appEl.classList.toggle('collapsed');
       setTimeout(() => map.invalidateSize(), 260); // after CSS transition
-      toggleListFloating.addEventListener('click', () => {
-  appEl.classList.toggle('collapsed');
-  setTimeout(() => map.invalidateSize(), 260); // reflow map after CSS transition
-});
-
-    });
+    };
+    collapseBtn.addEventListener('click', toggleList);
+    toggleListFloating.addEventListener('click', toggleList);
 
     // Restore saved manual location if present
     try {
@@ -242,6 +239,16 @@
       );
     });
 
+    // Manual geocode via OpenStreetMap Nominatim
+    async function geocodeQuery(q) {
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      if (!res.ok) throw new Error('Geocode HTTP ' + res.status);
+      const arr = await res.json();
+      if (!arr.length) throw new Error('No results for "' + q + '"');
+      return { lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon), label: arr[0].display_name };
+    }
+
     setLocBtn.addEventListener('click', async () => {
       const q = (locInput.value || '').trim();
       if (!q) { alert('Enter a ZIP or City, State'); return; }
@@ -268,9 +275,7 @@
 
     // Map layer toggles
     [chkPast, chkSoon, chkFuture].forEach(chk => {
-      chk.addEventListener('change', () => {
-        updateLayerVisibility();
-      });
+      chk.addEventListener('change', updateLayerVisibility);
     });
     function updateLayerVisibility() {
       toggleLayer(chkPast.checked, layers.past);
@@ -278,8 +283,8 @@
       toggleLayer(chkFuture.checked, layers.upcoming);
     }
     function toggleLayer(show, layer) {
-      if (show) { map.addLayer(layer); }
-      else { map.removeLayer(layer); }
+      if (show) map.addLayer(layer);
+      else map.removeLayer(layer);
     }
 
     // ---------- Load CSV & add markers ----------
@@ -289,9 +294,9 @@
         const rows = (results.data || []).filter(r => r && Object.keys(r).length);
         console.log("Loaded rows:", rows.length, "Columns:", Object.keys(rows[0] || {}));
         events = rows.map(r => rowToEvent(r)).filter(Boolean);
-        renderMarkers(); // put into layer groups
-        updateLayerVisibility(); // apply initial checkbox state
-        renderList();    // list excludes past by design
+        renderMarkers();         // fill layer groups
+        updateLayerVisibility(); // honor checkbox state
+        renderList();            // list excludes past by design
       },
       error: function(err) {
         console.error("CSV load error:", err);
@@ -342,7 +347,6 @@
           radius: 8, color: ev.color, weight: 2, fillColor: ev.color, fillOpacity: 0.85
         }).bindPopup(popupHtml);
 
-        // Add into the right layer
         if (ev.status === 'past') m.addTo(layers.past);
         else if (ev.status === 'soon') m.addTo(layers.soon);
         else m.addTo(layers.upcoming);
