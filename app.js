@@ -3,7 +3,7 @@ const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WO
 
 // USA bounds (CONUS-ish)
 const USA_BOUNDS = L.latLngBounds([ [24.396308, -124.848974], [49.384358, -66.885444] ]);
-const AUTO_FIT_ON_LOAD = false; // <-- keep initial view on USA, not full marker extent
+const AUTO_FIT_ON_LOAD = false; // keep initial view on USA
 
 // ===== State =====
 let map, layers, events = [], userLoc = null;
@@ -91,12 +91,27 @@ function addTilesWithFallback() {
   useOSM();
 }
 
+function ensureDesktopHeight(){
+  const mapDiv = document.getElementById('map');
+  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
+  if (h < 200 || w < 200) {
+    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
+    mapDiv.style.height = '820px';
+    document.getElementById('app').style.height = 'auto';
+    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
+  }
+}
+
 function initMap(){
+  // Make sure the page itself has stable height
+  document.documentElement.style.height = '100%';
+  document.body.style.minHeight = '100vh';
+
   map = L.map('map',{scrollWheelZoom:true});
   addTilesWithFallback();
   map.zoomControl.setPosition('bottomright');
 
-  // Start focused on USA (requested)
+  // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
 
   // Priority panes (orange > green > gray)
@@ -108,19 +123,12 @@ function initMap(){
              soon: L.layerGroup().addTo(map),
              upcoming: L.layerGroup().addTo(map) };
 
-  // Invalidate after layout settles + watchdog
   requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
   setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
+  ensureDesktopHeight();
 
-  // Desktop/iframe watchdog: if container is tiny at init, force pixel height
-  const mapDiv = document.getElementById('map');
-  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
-  if (h < 200 || w < 200) {
-    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
-    mapDiv.style.height = '820px';
-    document.getElementById('app').style.height = 'auto';
-    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
-  }
+  // Keep map healthy on resize/orientation changes
+  window.addEventListener('resize', ()=>{ map.invalidateSize(); updateHud(); });
 }
 
 // ===== Data mapping =====
@@ -145,8 +153,6 @@ function rowToEvent(r){
 function renderMarkers(){
   layers.past.clearLayers(); layers.soon.clearLayers(); layers.upcoming.clearLayers();
 
-  const boundsArr = [];
-
   events.forEach(ev=>{
     const popup =
       `<div class="popup">
@@ -167,23 +173,13 @@ function renderMarkers(){
     else layers.upcoming.addLayer(m);
 
     ev.marker = m;
-    boundsArr.push([ev.lat, ev.lng]);
   });
 
-  // Ensure groups are actually on at start
-  if (!map.hasLayer(layers.past)) map.addLayer(layers.past);
-  if (!map.hasLayer(layers.soon)) map.addLayer(layers.soon);
-  if (!map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
+  // Ensure groups reflect checkboxes
+  if (chkPast.checked && !map.hasLayer(layers.past)) map.addLayer(layers.past);
+  if (chkSoon.checked && !map.hasLayer(layers.soon)) map.addLayer(layers.soon);
+  if (chkFuture.checked && !map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
 
-  // On load, keep USA view (do not auto-fit), but allow Reset button to fit later
-  if (AUTO_FIT_ON_LOAD) {
-    if (boundsArr.length) {
-      const b = L.latLngBounds(boundsArr);
-      map.fitBounds(b, { padding: [28, 28], maxZoom: 7 });
-    } else {
-      map.fitBounds(USA_BOUNDS, { padding: [20,20] });
-    }
-  }
   setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 250);
 }
 
@@ -287,7 +283,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   map.removeLayer(layers.past);
 
   // Extra nudge loop (handles late CSS/layout)
-  let ticks=0; const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=6) clearInterval(id); }, 250);
+  let ticks=0; const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=8) clearInterval(id); }, 250);
 
   // Restore saved location (if any)
   try{
@@ -300,7 +296,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   }catch(_){}
 
-  // Fetch CSV then parse (avoids Papa XHR/CSP pitfalls)
+  // Fetch CSV then parse
   try{
     const resp = await fetch(SHEET_CSV + "&_ts=" + Date.now(), { credentials: "omit", cache: "no-store" });
     if (!resp.ok) throw new Error("CSV HTTP " + resp.status);
@@ -314,7 +310,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     events = rows.map(rowToEvent).filter(Boolean);
     console.log("Events mapped:", events.length);
 
-    renderMarkers();            // creates markers (no auto-fit at load)
+    renderMarkers();
     renderList();
 
     loadingBadge.style.display='none';
