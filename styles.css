@@ -1,8 +1,8 @@
 :root { --panel-w: 360px; }
 
 html, body { height: 100%; margin: 0; }
+body { background:#dde6f1; } /* visible background for debugging "white page" */
 
-/* Desktop grid */
 #app {
   height: 100vh;
   min-height: 480px;
@@ -27,14 +27,15 @@ html, body { height: 100%; margin: 0; }
   position: relative;
   width: 100%;
   height: 100vh;     /* desktop solid height */
-  min-height: 400px;
+  min-height: 480px; /* slightly larger min to avoid short viewports */
   z-index: 1;
   background: #eef3f8; /* visible even before tiles */
+  outline: 0; /* set to 2px solid #4a90e2; if you want to see the box */
 }
 .leaflet-container { height: 100% !important; width: 100% !important; }
+.leaflet-pane { z-index: 400; } /* ensure map panes are above page background */
 .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
-/* Overlay toggles */
 .map-overlay {
   position: absolute;
   top: 12px; left: 12px;
@@ -83,7 +84,7 @@ html, body { height: 100%; margin: 0; }
 #sortSel { min-width: 150px; }
 
 /* List items */
-.item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; }
+.item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; background:#fff; }
 .item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
 .meta { font-size: 12.5px; color: #444; }
 
@@ -130,4 +131,3 @@ html, body { height: 100%; margin: 0; }
   padding: 6px 8px; font-size: 12.5px;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
-
