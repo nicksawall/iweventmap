@@ -20,20 +20,45 @@
     #app.collapsed #sidebar { opacity: 0; pointer-events: none; }
     #map { position: relative; height: 100vh; width: 100%; }
 
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
-    .legend { display: flex; gap: 10px; font-size: 12.5px; margin: 6px 0 10px; flex-wrap: wrap; align-items: center; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    /* Map overlay: visibility toggles (top-left) */
+    .map-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 1002;
+      display: flex; gap: 10px; align-items: center;
+      background: #ffffffcc; backdrop-filter: blur(4px);
+      border: 1px solid #ddd; border-radius: 8px;
+      padding: 6px 10px; font-size: 13px;
+    }
+    .map-overlay label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
+    /* Floating sidebar toggle (always visible, top-left under overlay) */
+    #toggleListFloating {
+      position: absolute;
+      top: 52px;    /* a bit below the overlay */
+      left: 12px;
+      z-index: 1002;
+      padding: 8px 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      background: #ffffffcc;
+      backdrop-filter: blur(4px);
+      border-radius: 6px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    /* Sidebar controls (smaller) */
     .controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
     .row { display: flex; gap: 6px; align-items: center; }
-    /* Smaller, tighter controls */
-    .controls button, .controls input, .controls select {
+    .controls button, .controls input {
       padding: 4px 8px; font-size: 13px; line-height: 1.25; border: 1px solid #ddd; border-radius: 6px;
     }
-    #locBtn, #setLocBtn, #sortSel { font-size: 12.5px; padding: 4px 8px; }
-    #locInput { flex: 1; min-width: 140px; }
+    #locBtn, #setLocBtn { font-size: 12.5px; padding: 4px 8px; }
+    #locInput, #searchInput { flex: 1; min-width: 140px; }
 
-    .toggle-btn { padding: 4px 8px; font-size: 13px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; border-radius: 6px; }
     .item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; }
     .item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
     .meta { font-size: 12.5px; color: #444; }
@@ -43,44 +68,20 @@
     .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 320px; }
     .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
-    /* Floating “List” toggle — always visible */
-    #toggleListFloating {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 1002;        /* above Leaflet controls */
-      padding: 8px 10px;
-      font-size: 14px;
-      border: 1px solid #ddd;
-      background: #ffffffcc;
-      backdrop-filter: blur(4px);
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
     @media (max-width: 900px) {
       #app { grid-template-columns: 1fr; }
       #app.collapsed { grid-template-columns: 1fr; }
       #sidebar { height: 48vh; opacity: 1 !important; pointer-events: auto !important; }
       #map { height: 52vh; }
-      /* Mobile bonus: comfy tap target & small nudge */
-      #toggleListFloating { top: 10px; left: 10px; padding: 10px 12px; font-size: 15px; }
+      .map-overlay { top: 10px; left: 10px; font-size: 14px; }
+      #toggleListFloating { top: 56px; left: 10px; padding: 10px 12px; font-size: 18px; }
     }
   </style>
 </head>
 <body>
   <div id="app">
     <aside id="sidebar">
-      <div class="topbar">
-        <button id="collapseBtn" class="toggle-btn" title="Collapse/Expand list">☰ Toggle List</button>
-        <!-- Map layer visibility toggles -->
-        <div class="legend" id="layerToggles">
-          <label class="chk"><input type="checkbox" id="chkPast" checked> <span class="dot" style="background:#9aa0a6;"></span>Past</label>
-          <label class="chk"><input type="checkbox" id="chkSoon" checked> <span class="dot" style="background:#f2994a;"></span>Next 30d</label>
-          <label class="chk"><input type="checkbox" id="chkFuture" checked> <span class="dot" style="background:#34a853;"></span>Future</label>
-        </div>
-      </div>
-
+      <!-- Only location + search live in the list -->
       <div class="controls">
         <div class="row">
           <button id="locBtn" title="Use my location">📍 Use My Location</button>
@@ -88,26 +89,23 @@
           <button id="setLocBtn" title="Set location manually">Set Location</button>
         </div>
         <div class="row">
-          <input id="searchInput" type="text" placeholder="Search title or location…" style="flex:1;">
-          <select id="sortSel" title="Sort">
-            <option value="date">Sort by Date</option>
-            <option value="distance">Sort by Distance</option>
-          </select>
+          <input id="searchInput" type="text" placeholder="Search title or location…" />
         </div>
-      </div>
-
-      <div class="legend">
-        <span><span class="dot" style="background:#9aa0a6;"></span>Past (hidden from list)</span>
-        <span><span class="dot" style="background:#f2994a;"></span>Next 30 days</span>
-        <span><span class="dot" style="background:#34a853;"></span>Upcoming</span>
       </div>
 
       <div id="list"></div>
     </aside>
 
     <div id="map">
-      <!-- Always-visible toggle -->
-      <button id="toggleListFloating" title="Show/Hide list">☰ List</button>
+      <!-- Map overlay toggles -->
+      <div class="map-overlay" id="layerToggles">
+        <label><input type="checkbox" id="chkPast" checked> <span class="dot" style="background:#9aa0a6;"></span>Past</label>
+        <label><input type="checkbox" id="chkSoon" checked> <span class="dot" style="background:#f2994a;"></span>Next 30 days</label>
+        <label><input type="checkbox" id="chkFuture" checked> <span class="dot" style="background:#34a853;"></span>Future</label>
+      </div>
+
+      <!-- Always-visible sidebar toggle; shows “<” when open, “>” when collapsed -->
+      <button id="toggleListFloating" title="Show/Hide list"><span id="chev">&lt;</span></button>
     </div>
   </div>
 
@@ -139,24 +137,22 @@
       }
       return "";
     }
-    // Haversine distance in miles
     function distanceMiles(lat1, lon1, lat2, lon2) {
       const toRad = d => d * Math.PI / 180;
-      const R = 3958.7613; // Earth radius in miles
+      const R = 3958.7613;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*mathSin(dLon/2)**2;
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
       return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-      function mathSin(v){ return Math.sin(v); } // tiny inline to minify a bit on some CDNs
     }
     function classifyByDate(startISO) {
       const now = new Date();
       const start = new Date(startISO);
       if (isNaN(start)) return {status: 'unknown', color: '#3367d6'};
-      if (start < now) return {status: 'past', color: '#9aa0a6'};     // gray
+      if (start < now) return {status: 'past', color: '#9aa0a6'};
       const days = (start - now) / (1000*60*60*24);
-      if (days <= 30) return {status: 'soon', color: '#f2994a'};      // orange
-      return {status: 'upcoming', color: '#34a853'};                  // green
+      if (days <= 30) return {status: 'soon', color: '#f2994a'};
+      return {status: 'upcoming', color: '#34a853'};
     }
     function matchesQuery(ev, q) {
       if (!q) return true;
@@ -172,7 +168,7 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
-    // Option C: move zoom control to bottom-right
+    // Zoom control bottom-right
     map.zoomControl.setPosition('bottomright');
 
     // Layer groups for visibility toggles
@@ -186,26 +182,30 @@
     let userLoc = null;    // {lat, lng}
     let events = [];       // all events
 
-    const appEl     = document.getElementById('app');
-    const listEl    = document.getElementById('list');
-    const sortSel   = document.getElementById('sortSel');
-    const locBtn    = document.getElementById('locBtn');
-    const locInput  = document.getElementById('locInput');
-    const setLocBtn = document.getElementById('setLocBtn');
+    const appEl       = document.getElementById('app');
+    const listEl      = document.getElementById('list');
+    const locBtn      = document.getElementById('locBtn');
+    const locInput    = document.getElementById('locInput');
+    const setLocBtn   = document.getElementById('setLocBtn');
     const searchInput = document.getElementById('searchInput');
-    const collapseBtn = document.getElementById('collapseBtn');
     const toggleListFloating = document.getElementById('toggleListFloating');
+    const chev        = document.getElementById('chev');
 
     const chkPast   = document.getElementById('chkPast');
     const chkSoon   = document.getElementById('chkSoon');
     const chkFuture = document.getElementById('chkFuture');
 
+    const setChevron = () => {
+      // If list is visible, show “<” (collapse). If collapsed, show “>” (expand).
+      chev.textContent = appEl.classList.contains('collapsed') ? '>' : '<';
+    };
     const toggleList = () => {
       appEl.classList.toggle('collapsed');
-      setTimeout(() => map.invalidateSize(), 260); // after CSS transition
+      setChevron();
+      setTimeout(() => map.invalidateSize(), 260);
     };
-    collapseBtn.addEventListener('click', toggleList);
     toggleListFloating.addEventListener('click', toggleList);
+    setChevron();
 
     // Restore saved manual location if present
     try {
@@ -233,7 +233,7 @@
           renderList();
         },
         err => {
-          alert("Couldn’t get your location (" + err.message + "). You can still sort by date or set a ZIP manually.");
+          alert("Couldn’t get your location (" + err.message + "). You can still set a ZIP manually.");
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
       );
@@ -270,12 +270,14 @@
       }
     });
 
-    sortSel.addEventListener('change', renderList);
     searchInput.addEventListener('input', renderList);
 
-    // Map layer toggles
+    // Map layer toggles (over the map)
     [chkPast, chkSoon, chkFuture].forEach(chk => {
-      chk.addEventListener('change', updateLayerVisibility);
+      chk.addEventListener('change', () => {
+        updateLayerVisibility();
+        renderList(); // list respects Soon/Future toggles (Past always hidden)
+      });
     });
     function updateLayerVisibility() {
       toggleLayer(chkPast.checked, layers.past);
@@ -295,8 +297,8 @@
         console.log("Loaded rows:", rows.length, "Columns:", Object.keys(rows[0] || {}));
         events = rows.map(r => rowToEvent(r)).filter(Boolean);
         renderMarkers();         // fill layer groups
-        updateLayerVisibility(); // honor checkbox state
-        renderList();            // list excludes past by design
+        updateLayerVisibility(); // honor overlay toggles
+        renderList();            // list excludes past and follows overlay state
       },
       error: function(err) {
         console.error("CSV load error:", err);
@@ -356,36 +358,38 @@
     }
 
     function renderList() {
-      // Build filtered set: hide past; apply search query
       const q = (searchInput.value || '').trim();
-      const upcoming = events.filter(ev => ev.status !== 'past' && matchesQuery(ev, q));
 
-      // compute distance if possible
+      // Allowed statuses from overlay (list still always hides 'past')
+      const allowSoon   = chkSoon.checked;
+      const allowFuture = chkFuture.checked;
+
+      const filtered = events.filter(ev =>
+        ev.status !== 'past' &&
+        ( (ev.status === 'soon'   && allowSoon) ||
+          (ev.status === 'upcoming' && allowFuture) ) &&
+        matchesQuery(ev, q)
+      );
+
+      // compute distance if possible (used for display only)
       if (userLoc) {
-        upcoming.forEach(ev => {
+        filtered.forEach(ev => {
           ev.distance = distanceMiles(userLoc.lat, userLoc.lng, ev.lat, ev.lng);
         });
       }
 
-      // sort
-      const sortMode = sortSel.value;
-      const sorted = [...upcoming];
-      if (sortMode === 'distance' && userLoc) {
-        sorted.sort((a,b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
-      } else {
-        sorted.sort((a,b) => {
-          const da = new Date(a.start), db = new Date(b.start);
-          const t = (isNaN(da) ? Infinity : da) - (isNaN(db) ? Infinity : db);
-          return t !== 0 ? t : a.title.localeCompare(b.title);
-        });
-      }
+      // Sort by date then title
+      const sorted = [...filtered].sort((a,b) => {
+        const da = new Date(a.start), db = new Date(b.start);
+        const t = (isNaN(da) ? Infinity : da) - (isNaN(db) ? Infinity : db);
+        return t !== 0 ? t : a.title.localeCompare(b.title);
+      });
 
-      // render items
       listEl.innerHTML = '';
       if (!sorted.length) {
         const div = document.createElement('div');
         div.className = 'meta';
-        div.textContent = 'No upcoming events match your filters.';
+        div.textContent = 'No events match your filters.';
         listEl.appendChild(div);
         return;
       }
