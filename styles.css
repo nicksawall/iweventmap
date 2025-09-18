@@ -137,3 +137,10 @@ body { background:#dde6f1; } /* debug background */
   padding: 6px 8px; font-size: 12.5px;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
+/* Make sure the map is always on top of layout layers on desktop */
+@media (min-width: 901px) {
+  #map { z-index: 5; }
+  #sidebar { z-index: 4; }  /* sidebar only needs to sit above page bg */
+  #backdrop { z-index: 3; }
+}
+
