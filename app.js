@@ -45,71 +45,21 @@ function updateHud(){
 }
 
 // ===== Map init =====
-function addTilesWithFallback() {
-  let activeLayer;
-
-  function useOSM() {
-    activeLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-    activeLayer.on('tileerror', onError);
-    activeLayer.on('load', onLoad);
-  }
-
-  function useHot() {
-    if (activeLayer) { activeLayer.off(); map.removeLayer(activeLayer); }
-    activeLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors, Tiles style by HOT'
-    }).addTo(map);
-    activeLayer.on('tileerror', onSecondError);
-    activeLayer.on('load', onLoad);
-  }
-
-  function useCarto() {
-    if (activeLayer) { activeLayer.off(); map.removeLayer(activeLayer); }
-    activeLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors & CARTO'
-    }).addTo(map);
-    activeLayer.on('load', onLoad);
-  }
-
-  function onError() {
-    console.warn('OSM tiles blocked; switching to HOT layer');
-    useHot();
-  }
-  function onSecondError() {
-    console.warn('HOT tiles failed; trying Carto basemap');
-    useCarto();
-  }
-  function onLoad() {
-    requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
-  }
-
-  useOSM();
-}
-
-function ensureDesktopHeight(){
-  const mapDiv = document.getElementById('map');
-  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
-  if (h < 200 || w < 200) {
-    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
-    mapDiv.style.height = '820px';
-    document.getElementById('app').style.height = 'auto';
-    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
-  }
-}
-
 function initMap(){
-  // Make sure the page itself has stable height
+  // Ensure base heights
   document.documentElement.style.height = '100%';
   document.body.style.minHeight = '100vh';
 
   map = L.map('map',{scrollWheelZoom:true});
-  addTilesWithFallback();
   map.zoomControl.setPosition('bottomright');
+
+  // Single, reliable CARTO basemap
+  const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors & CARTO'
+  }).addTo(map);
+  carto.on('load', ()=>console.log('Basemap tiles loaded (CARTO).'));
+  carto.on('tileerror', (e)=>console.warn('Tile error (CARTO):', e));
 
   // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
@@ -123,11 +73,25 @@ function initMap(){
              soon: L.layerGroup().addTo(map),
              upcoming: L.layerGroup().addTo(map) };
 
+  // DEBUG: place a marker in Kansas to verify rendering stack
+  const debugM = L.circleMarker([39.0, -96.0], { radius: 7, color:'#1976d2', fillColor:'#1976d2', fillOpacity:0.8, weight:2 })
+    .bindPopup('Leaflet rendering check: if you see this, markers render OK.')
+    .addTo(map);
+  setTimeout(()=>debugM.openPopup(), 300);
+
   requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
   setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
-  ensureDesktopHeight();
 
-  // Keep map healthy on resize/orientation changes
+  // Desktop/iframe watchdog: if container is tiny at init, force pixel height
+  const mapDiv = document.getElementById('map');
+  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
+  if (h < 200 || w < 200) {
+    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
+    mapDiv.style.height = '820px';
+    document.getElementById('app').style.height = 'auto';
+    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
+  }
+
   window.addEventListener('resize', ()=>{ map.invalidateSize(); updateHud(); });
 }
 
@@ -280,7 +244,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // Default: hide past on first load (both list & map)
   chkPast.checked = false;
-  map.removeLayer(layers.past);
+  // We'll render markers after CSV is parsed and then remove past layer
 
   // Extra nudge loop (handles late CSS/layout)
   let ticks=0; const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=8) clearInterval(id); }, 250);
@@ -311,6 +275,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     console.log("Events mapped:", events.length);
 
     renderMarkers();
+    // Hide past on map to match list default
+    map.removeLayer(layers.past);
+
     renderList();
 
     loadingBadge.style.display='none';
