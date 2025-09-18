@@ -40,6 +40,21 @@
       #app.collapsed { grid-template-columns: 1fr; }
       #sidebar { height: 48vh; opacity: 1 !important; pointer-events: auto !important; }
       #map { height: 52vh; }
+      /* Floating toggle that stays visible even when the list is collapsed */
+#toggleListFloating {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;           /* above the map */
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  background: #ffffffcc;   /* slight transparency */
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
     }
   </style>
 </head>
