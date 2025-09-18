@@ -24,6 +24,7 @@ const chkSoon = document.getElementById('chkSoon');
 const chkFuture = document.getElementById('chkFuture');
 const loadingBadge = document.getElementById('loading');
 const resetBtn = document.getElementById('resetBtn');
+const hud = document.getElementById('hud');
 
 
 // ===== Utils =====
