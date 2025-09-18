@@ -96,7 +96,10 @@
 
       <div id="list"></div>
     </aside>
-    <div id="map"></div>
+    <div id="map">
+  <button id="toggleListFloating" title="Show/Hide list">☰ List</button>
+</div>
+
   </div>
 
   <script>
@@ -181,12 +184,15 @@
     let events = [];       // all events
     const appEl     = document.getElementById('app');
     const listEl    = document.getElementById('list');
+    const toggleListFloating = document.getElementById('toggleListFloating');
     const sortSel   = document.getElementById('sortSel');
     const locBtn    = document.getElementById('locBtn');
     const locInput  = document.getElementById('locInput');
     const setLocBtn = document.getElementById('setLocBtn');
     const searchInput = document.getElementById('searchInput');
     const collapseBtn = document.getElementById('collapseBtn');
+    
+
 
     const chkPast   = document.getElementById('chkPast');
     const chkSoon   = document.getElementById('chkSoon');
@@ -195,6 +201,11 @@
     collapseBtn.addEventListener('click', () => {
       appEl.classList.toggle('collapsed');
       setTimeout(() => map.invalidateSize(), 260); // after CSS transition
+      toggleListFloating.addEventListener('click', () => {
+  appEl.classList.toggle('collapsed');
+  setTimeout(() => map.invalidateSize(), 260); // reflow map after CSS transition
+});
+
     });
 
     // Restore saved manual location if present
