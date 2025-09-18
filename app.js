@@ -178,10 +178,15 @@ function renderMarkers(){
 
 function renderList(){
   const q = (searchInput.value || '').trim();
-  const allowPast = chkPast.checked, allowSoon = chkSoon.checked, allowFuture = chkFuture.checked;
+  const showSoon   = chkSoon.checked;
+  const showFuture = chkFuture.checked;
 
   const filtered = events.filter(ev =>
-    ((ev.status==='past' && allowPast) || (ev.status==='soon' && allowSoon) || (ev.status==='upcoming' && allowFuture)) &&
+    ev.status !== 'past' &&                              // <— never show past in the list
+    (
+      (ev.status === 'soon'     && showSoon) ||
+      (ev.status === 'upcoming' && showFuture)
+    ) &&
     matchesQuery(ev, q)
   );
 
@@ -194,6 +199,7 @@ function renderList(){
     </div>`
   ).join('');
 }
+
 
 // ===== UI wiring =====
 function openDrawer(){ appEl.classList.remove('collapsed'); appEl.classList.add('drawer-open'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
@@ -303,8 +309,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     console.log("Events mapped:", events.length);
 
     renderMarkers();
-    // Match list default: hide past layer
-    map.removeLayer(layers.past);
+
 
     renderList();
 
