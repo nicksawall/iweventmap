@@ -5,138 +5,23 @@
   <title>Irreverent Warriors Event Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" crossorigin="anonymous">
+  <!-- Page styles -->
+  <link rel="stylesheet" href="./styles.css">
 
-  <!-- Papa Parse -->
-  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-
-  <style>
-    :root { --panel-w: 360px; }
-
-    html, body { height: 100%; margin: 0; }
-
-    /* Desktop layout: grid with fixed vh */
-    #app {
-      height: 100vh;
-      min-height: 480px;
-      display: grid;
-      grid-template-columns: var(--panel-w) 1fr;
-      transition: grid-template-columns .25s ease;
-      position: relative;
-    }
-    #app.collapsed { grid-template-columns: 0px 1fr; }
-
-    #sidebar {
-      border-right: 1px solid #e5e5e5;
-      padding: 10px;
-      overflow: auto;
-      transition: opacity .2s ease;
-      background: #fff;
-      z-index: 2;
-    }
-    #app.collapsed #sidebar { opacity: 0; pointer-events: none; }
-
-    /* Map fill (desktop) — with visible background for quick sanity check */
-    #map {
-      position: relative;
-      width: 100%;
-      height: 100vh;         /* main desktop height */
-      min-height: 400px;     /* safety */
-      z-index: 1;
-      background: #eef3f8;   /* shows even if tiles fail */
-    }
-    /* Make Leaflet fill its parent no matter what */
-    .leaflet-container { height: 100% !important; width: 100% !important; }
-
-    .map-overlay {
-      position: absolute;
-      top: 12px; left: 12px;
-      z-index: 1004;
-      display: flex; gap: 10px; align-items: center;
-      background: #ffffffcc; backdrop-filter: blur(4px);
-      border: 1px solid #ddd; border-radius: 8px;
-      padding: 6px 10px; font-size: 13px;
-    }
-    .map-overlay label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-
-    #toggleListFloating {
-      position: absolute;
-      top: 52px; left: 12px;
-      z-index: 1004;
-      padding: 8px 10px;
-      font-size: 16px;
-      border: 1px solid #ddd;
-      background: #ffffffcc;
-      backdrop-filter: blur(4px);
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .controls { display: grid; gap: 8px; margin-bottom: 8px; }
-    .row { display: flex; gap: 6px; align-items: center; }
-    .controls button, .controls input, .controls select {
-      padding: 4px 8px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px;
-    }
-    #locBtn, #setLocBtn { font-size: 12.5px; padding: 4px 8px; }
-    #locInput, #searchInput { flex: 1; min-width: 140px; }
-    #sortSel { min-width: 150px; }
-
-    .item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; }
-    .item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
-    .meta { font-size: 12.5px; color: #444; }
-
-    .popup h3 { margin: 0 0 4px; font-size: 16px; }
-    .popup .meta { font-size: 13px; margin: 2px 0; color: #333; }
-    .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 320px; }
-    .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-
-    /* Mobile drawer + dynamic viewport height */
-    @media (max-width: 900px) {
-      :root { --panel-w: 86vw; }
-      #app { display: block; height: 100dvh; }
-      #sidebar {
-        position: fixed; left: 0; top: 0;
-        width: var(--panel-w); height: 100dvh;
-        box-shadow: 0 8px 24px rgba(0,0,0,.18);
-        transform: translateX(-100%);
-        transition: transform .25s ease;
-        z-index: 1002; /* above backdrop */
-      }
-      #app.drawer-open #sidebar { transform: translateX(0); }
-
-      #backdrop {
-        position: fixed; inset: 0;
-        background: rgba(0,0,0,.28);
-        opacity: 0; pointer-events: none;
-        transition: opacity .25s ease;
-        z-index: 1001; /* under sidebar */
-      }
-      #app.drawer-open #backdrop { opacity: 1; pointer-events: auto; }
-
-      #map { height: 100dvh; }
-      .map-overlay { top: 10px; left: 10px; }
-      #toggleListFloating { top: 56px; left: 10px; padding: 10px 12px; font-size: 18px; }
-
-      /* Safety: even if 'collapsed' lingers, show the drawer when open */
-      #app.collapsed.drawer-open #sidebar { opacity: 1; pointer-events: auto; }
-    }
-
-    #loading {
-      position: absolute; bottom: 12px; left: 12px; z-index: 1003;
-      background: #fff; border: 1px solid #ddd; border-radius: 6px;
-      padding: 6px 8px; font-size: 12.5px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
-    }
-    /* Desktop-only hard fallback: if needed we can switch to a fixed pixel height via JS */
-  </style>
+  <!-- Leaflet JS (defer) -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js" crossorigin="anonymous" defer></script>
+  <!-- Papa Parse (defer) -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" crossorigin="anonymous" defer></script>
+  <!-- Your app JS (defer) -->
+  <script src="./app.js" defer></script>
 </head>
 <body>
   <div id="app" class="collapsed">
-    <div id="backdrop"></div>
+    <div id="backdrop" aria-hidden="true"></div>
 
-    <aside id="sidebar">
+    <aside id="sidebar" aria-label="Event filters and list">
       <div class="controls">
         <div class="row">
           <button id="locBtn">📍 Use My Location</button>
@@ -145,7 +30,7 @@
         </div>
         <div class="row">
           <input id="searchInput" type="text" placeholder="Search title or location…"/>
-          <select id="sortSel">
+          <select id="sortSel" title="Sort">
             <option value="date" selected>Sort by Date</option>
             <option value="distance" disabled>Sort by Distance</option>
           </select>
@@ -155,211 +40,16 @@
     </aside>
 
     <div id="map">
-      <div class="map-overlay">
+      <div class="map-overlay" role="group" aria-label="Map toggles">
         <label><input type="checkbox" id="chkPast" checked> <span class="dot" style="background:#9aa0a6;"></span>Past</label>
         <label><input type="checkbox" id="chkSoon" checked> <span class="dot" style="background:#f2994a;"></span>Next 30 days</label>
         <label><input type="checkbox" id="chkFuture" checked> <span class="dot" style="background:#34a853;"></span>Future</label>
       </div>
-      <button id="toggleListFloating"><span id="chev">&lt;</span></button>
+      <button id="toggleListFloating" aria-controls="sidebar" aria-expanded="false">
+        <span id="chev">&lt;</span>
+      </button>
       <div id="loading">Loading events…</div>
     </div>
   </div>
-
-  <script>
-    // --- Helpers ---
-    function escapeHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
-    function linkify(text){if(!text)return"";return text.replace(/(https?:\/\/[^\s]+)/g,url=>`<a href="${url}" target="_blank" rel="noopener">${url}</a>`);}
-    function formatDate(s){if(!s)return"";const d=new Date(s);if(isNaN(d))return s;return d.toLocaleString("en-US",{month:"long",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",hour12:true});}
-    function distanceMiles(lat1,lon1,lat2,lon2){const toRad=d=>d*Math.PI/180;const R=3958.8;const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-    function classifyByDate(startISO){const now=new Date();const s=new Date(startISO);if(isNaN(s))return{status:'unknown',color:'#3367d6'};if(s<now)return{status:'past',color:'#9aa0a6'};const days=(s-now)/86400000;if(days<=30)return{status:'soon',color:'#f2994a'};return{status:'upcoming',color:'#34a853'};}
-    function matchesQuery(ev,q){if(!q)return true;q=q.toLowerCase();return ev.title.toLowerCase().includes(q)||(ev.where||'').toLowerCase().includes(q);}
-    function isMobile(){ return window.matchMedia('(max-width: 900px)').matches; }
-
-    const SHEET_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
-
-    let map,layers,events=[],userLoc=null;
-    const appEl=document.getElementById('app'),listEl=document.getElementById('list');
-    const locBtn=document.getElementById('locBtn'),locInput=document.getElementById('locInput'),setLocBtn=document.getElementById('setLocBtn');
-    const searchInput=document.getElementById('searchInput'),sortSel=document.getElementById('sortSel');
-    const toggleListFloating=document.getElementById('toggleListFloating'),chev=document.getElementById('chev'),backdrop=document.getElementById('backdrop');
-    const chkPast=document.getElementById('chkPast'),chkSoon=document.getElementById('chkSoon'),chkFuture=document.getElementById('chkFuture');
-    const loading=document.getElementById('loading');
-
-    function initMap(){
-      map=L.map('map',{scrollWheelZoom:true}).setView([37.8,-96],4);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-      map.zoomControl.setPosition('bottomright');
-
-      // Priority panes (orange > green > gray)
-      map.createPane('paneSoon'); map.getPane('paneSoon').style.zIndex=650;
-      map.createPane('paneUpcoming'); map.getPane('paneUpcoming').style.zIndex=640;
-      map.createPane('panePast'); map.getPane('panePast').style.zIndex=630;
-
-      layers={past:L.layerGroup().addTo(map),soon:L.layerGroup().addTo(map),upcoming:L.layerGroup().addTo(map)};
-
-      // Initial nudges
-      requestAnimationFrame(()=>map.invalidateSize());
-      setTimeout(()=>map.invalidateSize(),400);
-    }
-
-    // Desktop visibility watchdog: if the map div isn't tall, force a pixel height
-    function ensureMapVisible(){
-      const mapDiv=document.getElementById('map');
-      const h=mapDiv.clientHeight, w=mapDiv.clientWidth;
-      if(h < 200 || w < 200){
-        console.warn('Map container small at init, forcing 820px height (desktop fallback)');
-        mapDiv.style.height='820px';
-        // Also make app grid auto-height so the forced pixel height isn't clipped
-        document.getElementById('app').style.height='auto';
-        setTimeout(()=>{ map.invalidateSize(); }, 50);
-      }
-    }
-
-    function rowToEvent(r){
-      const lat=parseFloat(r.lat),lng=parseFloat(r.lng);
-      if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
-      const klass=classifyByDate(r.start);
-      return {
-        title:(r.title||'Untitled Event').trim(),
-        start:r.start,end:r.end,
-        when:formatDate(r.start)+(r.end?" – "+formatDate(r.end):""),
-        where:r.location||'',
-        link:r.htmlLink||'',
-        rawDesc:r.description||'',
-        desc:linkify(escapeHtml(r.description||'')),
-        lat,lng,color:klass.color,status:klass.status,marker:null
-      };
-    }
-
-    function renderMarkers(){
-      layers.past.clearLayers();layers.soon.clearLayers();layers.upcoming.clearLayers();
-      events.forEach(ev=>{
-        const popup=`<div class="popup">
-            <h3>${escapeHtml(ev.title)}</h3>
-            ${ev.when?`<div class="meta"><strong>When:</strong> ${ev.when}</div>`:""}
-            ${ev.where?`<div class="meta"><strong>Where:</strong> ${escapeHtml(ev.where)}</div>`:""}
-            ${ev.link?`<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>`:""}
-            ${ev.rawDesc?`<div class="desc">${ev.desc}</div>`:""}
-          </div>`;
-        const pane = ev.status==='soon' ? 'paneSoon' : ev.status==='upcoming' ? 'paneUpcoming' : 'panePast';
-        const m=L.circleMarker([ev.lat,ev.lng],{pane,radius:8,color:ev.color,weight:2,fillColor:ev.color,fillOpacity:0.85}).bindPopup(popup);
-        (ev.status==='past'?layers.past:ev.status==='soon'?layers.soon:layers.upcoming).addLayer(m);
-        ev.marker=m;
-      });
-    }
-
-    function renderList(){
-      const q=(searchInput.value||'').trim();
-      const filtered=events.filter(ev=>ev.status!=='past'&&matchesQuery(ev,q));
-      listEl.innerHTML=filtered.map(ev=>`
-        <div class="item">
-          <h4><span class="dot" style="background:${ev.color};"></span>${escapeHtml(ev.title)}</h4>
-          <div class="meta">${ev.when}</div>
-          ${ev.where?`<div class="meta">${escapeHtml(ev.where)}</div>`:''}
-          ${ev.link?`<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">Open in Google Calendar</a></div>`:''}
-        </div>`).join('');
-    }
-
-    // Sidebar / Drawer
-    function setChevron(){ document.getElementById('chev').textContent=(appEl.classList.contains('collapsed') && !isMobile()) || (!appEl.classList.contains('drawer-open') && isMobile()) ? '>' : '<'; }
-    function openDrawer(){ appEl.classList.remove('collapsed'); appEl.classList.add('drawer-open'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
-    function closeDrawer(){ appEl.classList.remove('drawer-open'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
-    function toggleList(){
-      if(isMobile()){ appEl.classList.contains('drawer-open') ? closeDrawer() : openDrawer(); }
-      else { appEl.classList.toggle('collapsed'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
-    }
-    toggleListFloating.addEventListener('click',toggleList);
-    backdrop.addEventListener('click',closeDrawer);
-
-    // Location helpers (distance sorting can be re-enabled when you’re ready)
-    function updateSortAvailability(){
-      const distOpt=[...sortSel.options].find(o=>o.value==='distance');
-      if(!distOpt)return;
-      if(userLoc){ distOpt.disabled=false; } else { if(sortSel.value==='distance') sortSel.value='date'; distOpt.disabled=true; }
-    }
-    document.getElementById('locBtn').addEventListener('click',()=>{
-      if(!navigator.geolocation){alert('Geolocation not supported.');return;}
-      navigator.geolocation.getCurrentPosition(
-        pos=>{
-          userLoc={lat:pos.coords.latitude,lng:pos.coords.longitude};
-          localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));
-          L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
-            .addTo(map).bindPopup('You are here').openPopup();
-          updateSortAvailability(); renderList();
-        },
-        err=>alert("Couldn't get your location ("+err.message+")"),
-        {enableHighAccuracy:true,timeout:8000,maximumAge:60000}
-      );
-    });
-    document.getElementById('setLocBtn').addEventListener('click',async()=>{
-      const q=(document.getElementById('locInput').value||'').trim();
-      if(!q){ alert('Enter a ZIP or City, State'); return; }
-      try{
-        const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),{headers:{'Accept-Language':'en'}});
-        const arr=await res.json(); if(!arr.length) throw new Error('No results');
-        userLoc={lat:parseFloat(arr[0].lat),lng:parseFloat(arr[0].lon)};
-        localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));
-        L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
-          .addTo(map).bindPopup('Your location set').openPopup();
-        map.setView([userLoc.lat,userLoc.lng],8);
-        updateSortAvailability(); renderList();
-      }catch(_){ alert('Could not find that place.'); }
-    });
-    searchInput.addEventListener('input',renderList);
-    sortSel.addEventListener('change',renderList);
-
-    // Toggles update layers/list
-    [chkPast,chkSoon,chkFuture].forEach(chk=>chk.addEventListener('change',()=>{ 
-      if(chkPast.checked) map.addLayer(layers.past); else map.removeLayer(layers.past);
-      if(chkSoon.checked) map.addLayer(layers.soon); else map.removeLayer(layers.soon);
-      if(chkFuture.checked) map.addLayer(layers.upcoming); else map.removeLayer(layers.upcoming);
-      renderList();
-    }));
-
-    // Init after full load
-    window.addEventListener('load',()=>{
-      initMap();
-
-      // Desktop/iframe watchdog: if container is tiny at init, force 820px height
-      ensureMapVisible();
-
-      // Extra nudge loop (handles late CSS/layout)
-      let ticks=0;const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=6) clearInterval(id); },250);
-
-      // Load CSV
-      Papa.parse(SHEET_CSV+"&_ts="+Date.now(),{
-        download:true,header:true,skipEmptyLines:true,
-        complete:res=>{
-          const rows=(res.data||[]).filter(r=>r && Object.keys(r).length);
-          console.log("CSV loaded:", {rows: rows.length, cols: Object.keys(rows[0]||{})});
-          if(rows.length) console.log("CSV sample row:", rows[0]);
-          events=rows.map(rowToEvent).filter(Boolean);
-          console.log("Events mapped:", events.length);
-
-          renderMarkers(); renderList();
-          loading.style.display='none';
-          setTimeout(()=>map.invalidateSize(),400);
-        },
-        error:err=>{
-          console.error("CSV load error:",err);
-          loading.textContent='Failed to load events.';
-          alert("Could not load event data. Make sure your sheet tab is published as CSV.");
-        }
-      });
-
-      // Restore saved location (marker after map exists)
-      try{
-        const saved=localStorage.getItem('iw_user_loc');
-        if(saved){
-          userLoc=JSON.parse(saved);
-          L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
-            .addTo(map).bindPopup('Your saved location').openPopup();
-          updateSortAvailability();
-        }
-      }catch(_) {}
-
-      setTimeout(setChevron,0);
-    });
-  </script>
 </body>
 </html>
