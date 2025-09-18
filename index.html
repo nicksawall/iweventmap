@@ -53,11 +53,12 @@
     /* Sidebar controls */
     .controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
     .row { display: flex; gap: 6px; align-items: center; }
-    .controls button, .controls input {
+    .controls button, .controls input, .controls select {
       padding: 4px 8px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px;
     }
     #locBtn, #setLocBtn { font-size: 12.5px; padding: 4px 8px; }
     #locInput, #searchInput { flex: 1; min-width: 140px; }
+    #sortSel { min-width: 150px; }
 
     .item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; }
     .item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
@@ -89,6 +90,10 @@
         </div>
         <div class="row">
           <input id="searchInput" type="text" placeholder="Search title or location…"/>
+          <select id="sortSel" title="Sort">
+            <option value="date" selected>Sort by Date</option>
+            <option value="distance" disabled>Sort by Distance</option>
+          </select>
         </div>
       </div>
       <div id="list"></div>
@@ -133,7 +138,7 @@
     // ---------- Data & UI ----------
     let userLoc=null;let events=[];
     const appEl=document.getElementById('app');const listEl=document.getElementById('list');
-    const locBtn=document.getElementById('locBtn');const locInput=document.getElementById('locInput');const setLocBtn=document.getElementById('setLocBtn');const searchInput=document.getElementById('searchInput');
+    const locBtn=document.getElementById('locBtn');const locInput=document.getElementById('locInput');const setLocBtn=document.getElementById('setLocBtn');const searchInput=document.getElementById('searchInput');const sortSel=document.getElementById('sortSel');
     const toggleListFloating=document.getElementById('toggleListFloating');const chev=document.getElementById('chev');
     const chkPast=document.getElementById('chkPast');const chkSoon=document.getElementById('chkSoon');const chkFuture=document.getElementById('chkFuture');
 
@@ -141,13 +146,29 @@
     const toggleList=()=>{appEl.classList.toggle('collapsed');setChevron();setTimeout(()=>map.invalidateSize(),260);};
     toggleListFloating.addEventListener('click',toggleList);setChevron();
 
+    // Enable/disable Distance sort based on whether we have a location
+    function updateSortAvailability(){
+      const distOpt = [...sortSel.options].find(o => o.value==='distance');
+      if (!distOpt) return;
+      if (userLoc) { distOpt.disabled = false; }
+      else {
+        // if distance was selected without a location, revert to date
+        if (sortSel.value === 'distance') sortSel.value = 'date';
+        distOpt.disabled = true;
+      }
+    }
+
     // Restore saved location
     try{const saved=localStorage.getItem('iw_user_loc');if(saved){userLoc=JSON.parse(saved);L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('Your saved location').openPopup();}}catch(_){}
+    updateSortAvailability();
 
-    locBtn.addEventListener('click',()=>{if(!navigator.geolocation){alert("Geolocation not supported.");return;}navigator.geolocation.getCurrentPosition(pos=>{userLoc={lat:pos.coords.latitude,lng:pos.coords.longitude};localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('You are here').openPopup();renderList();},err=>{alert("Couldn’t get your location ("+err.message+")");},{enableHighAccuracy:true,timeout:8000,maximumAge:60000});});
+    locBtn.addEventListener('click',()=>{if(!navigator.geolocation){alert("Geolocation not supported.");return;}navigator.geolocation.getCurrentPosition(pos=>{userLoc={lat:pos.coords.latitude,lng:pos.coords.longitude};localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('You are here').openPopup();updateSortAvailability();renderList();},err=>{alert("Couldn’t get your location ("+err.message+")");},{enableHighAccuracy:true,timeout:8000,maximumAge:60000});});
+
     async function geocodeQuery(q){const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q);const res=await fetch(url,{headers:{'Accept-Language':'en'}});if(!res.ok)throw new Error('Geocode HTTP '+res.status);const arr=await res.json();if(!arr.length)throw new Error('No results');return{lat:parseFloat(arr[0].lat),lng:parseFloat(arr[0].lon),label:arr[0].display_name};}
-    setLocBtn.addEventListener('click',async()=>{const q=(locInput.value||'').trim();if(!q){alert('Enter a ZIP or City, State');return;}try{setLocBtn.disabled=true;setLocBtn.textContent='Setting…';const{lat,lng,label}=await geocodeQuery(q);userLoc={lat,lng};localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));L.circleMarker([lat,lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('Your location: '+escapeHtml(label)).openPopup();map.setView([lat,lng],8);renderList();}catch(e){alert('Could not find that place.');}finally{setLocBtn.disabled=false;setLocBtn.textContent='Set Location';}});
+    setLocBtn.addEventListener('click',async()=>{const q=(locInput.value||'').trim();if(!q){alert('Enter a ZIP or City, State');return;}try{setLocBtn.disabled=true;setLocBtn.textContent='Setting…';const{lat,lng,label}=await geocodeQuery(q);userLoc={lat,lng};localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));L.circleMarker([lat,lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('Your location: '+escapeHtml(label)).openPopup();map.setView([lat,lng],8);updateSortAvailability();renderList();}catch(e){alert('Could not find that place.');}finally{setLocBtn.disabled=false;setLocBtn.textContent='Set Location';}});
+
     searchInput.addEventListener('input',renderList);
+    sortSel.addEventListener('change',renderList);
 
     [chkPast,chkSoon,chkFuture].forEach(chk=>{chk.addEventListener('change',()=>{updateLayerVisibility();renderList();});});
     function updateLayerVisibility(){toggleLayer(chkPast.checked,layers.past);toggleLayer(chkSoon.checked,layers.soon);toggleLayer(chkFuture.checked,layers.upcoming);}
@@ -200,15 +221,22 @@
         matchesQuery(ev,q)
       );
 
+      // compute distances if we have a location
       if(userLoc){
         filtered.forEach(ev => ev.distance = distanceMiles(userLoc.lat,userLoc.lng,ev.lat,ev.lng));
       }
 
-      const sorted=[...filtered].sort((a,b)=>{
-        const da=new Date(a.start), db=new Date(b.start);
-        const t=(isNaN(da)?Infinity:da)-(isNaN(db)?Infinity:db);
-        return t!==0 ? t : a.title.localeCompare(b.title);
-      });
+      // sort
+      const sorted=[...filtered];
+      if (sortSel.value === 'distance' && userLoc) {
+        sorted.sort((a,b)=> (a.distance ?? Infinity) - (b.distance ?? Infinity));
+      } else {
+        sorted.sort((a,b)=>{
+          const da=new Date(a.start), db=new Date(b.start);
+          const t=(isNaN(da)?Infinity:da)-(isNaN(db)?Infinity:db);
+          return t!==0 ? t : a.title.localeCompare(b.title);
+        });
+      }
 
       listEl.innerHTML='';
       if(!sorted.length){
