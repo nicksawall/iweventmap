@@ -84,10 +84,7 @@ function initMap(){
 
   // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
-  // Show a debug marker to confirm Leaflet is actually rendering on desktop
-const dbg = L.circleMarker([39.0, -96.0], { radius: 7, color:'#1976d2', fillColor:'#1976d2', fillOpacity:0.9, weight:2 })
-  .addTo(map).bindPopup('Leaflet rendering check: if you see this, the map layer is visible.');
-setTimeout(()=>dbg.openPopup(), 300);
+
 
 // Log container size a few times (helps catch a zero-height race)
 const mapDiv = document.getElementById('map');
