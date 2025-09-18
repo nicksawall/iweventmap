@@ -84,6 +84,17 @@ function initMap(){
 
   // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
+  // Show a debug marker to confirm Leaflet is actually rendering on desktop
+const dbg = L.circleMarker([39.0, -96.0], { radius: 7, color:'#1976d2', fillColor:'#1976d2', fillOpacity:0.9, weight:2 })
+  .addTo(map).bindPopup('Leaflet rendering check: if you see this, the map layer is visible.');
+setTimeout(()=>dbg.openPopup(), 300);
+
+// Log container size a few times (helps catch a zero-height race)
+const mapDiv = document.getElementById('map');
+console.log('Map size @init:', mapDiv.clientWidth, mapDiv.clientHeight);
+setTimeout(()=>console.log('Map size @+200ms:', mapDiv.clientWidth, mapDiv.clientHeight), 200);
+setTimeout(()=>console.log('Map size @+800ms:', mapDiv.clientWidth, mapDiv.clientHeight), 800);
+
   setTimeout(()=>map.invalidateSize(), 50);
   setTimeout(()=>map.invalidateSize(), 300);
 
@@ -98,7 +109,21 @@ function initMap(){
 
   requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
   setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
-  ensureDesktopHeight();
+  function ensureDesktopHeight(){
+  const mapDiv = document.getElementById('map');
+  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
+  if (h < 200 || w < 200) {
+    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
+    mapDiv.style.height = '820px';
+    document.getElementById('app').style.height = 'auto';
+    // After forcing height, make sure the map paints and sits on top
+    map.invalidateSize();
+    setTimeout(()=>map.invalidateSize(), 50);
+    setTimeout(()=>map.invalidateSize(), 300);
+    mapDiv.style.zIndex = 5; // belt & suspenders
+  }
+}
+
   window.addEventListener('resize', ()=>{ map.invalidateSize(); updateHud(); });
 }
 
