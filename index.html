@@ -9,18 +9,18 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- Papa Parse (robust CSV parsing) -->
+  <!-- Papa Parse -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
     html, body { height: 100%; margin: 0; }
-    #app { display: grid; grid-template-columns: 360px 1fr; gap: 0; height: 100vh; transition: grid-template-columns .25s ease; }
+    #app { display: grid; grid-template-columns: 360px 1fr; height: 100vh; transition: grid-template-columns .25s ease; }
     #app.collapsed { grid-template-columns: 0px 1fr; }
     #sidebar { border-right: 1px solid #e5e5e5; padding: 10px; overflow: auto; transition: opacity .2s ease; }
     #app.collapsed #sidebar { opacity: 0; pointer-events: none; }
     #map { position: relative; height: 100vh; width: 100%; }
 
-    /* Map overlay: visibility toggles (top-left) */
+    /* Map overlay toggles */
     .map-overlay {
       position: absolute;
       top: 12px;
@@ -34,10 +34,10 @@
     .map-overlay label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
-    /* Floating sidebar toggle (always visible, top-left under overlay) */
+    /* Floating sidebar toggle */
     #toggleListFloating {
       position: absolute;
-      top: 52px;    /* a bit below the overlay */
+      top: 52px;
       left: 12px;
       z-index: 1002;
       padding: 8px 10px;
@@ -50,11 +50,11 @@
       line-height: 1;
     }
 
-    /* Sidebar controls (smaller) */
+    /* Sidebar controls */
     .controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
     .row { display: flex; gap: 6px; align-items: center; }
     .controls button, .controls input {
-      padding: 4px 8px; font-size: 13px; line-height: 1.25; border: 1px solid #ddd; border-radius: 6px;
+      padding: 4px 8px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px;
     }
     #locBtn, #setLocBtn { font-size: 12.5px; padding: 4px 8px; }
     #locInput, #searchInput { flex: 1; min-width: 140px; }
@@ -81,262 +81,86 @@
 <body>
   <div id="app">
     <aside id="sidebar">
-      <!-- Only location + search live in the list -->
       <div class="controls">
         <div class="row">
-          <button id="locBtn" title="Use my location">📍 Use My Location</button>
+          <button id="locBtn">📍 Use My Location</button>
           <input id="locInput" type="text" placeholder="ZIP or City, State">
-          <button id="setLocBtn" title="Set location manually">Set Location</button>
+          <button id="setLocBtn">Set Location</button>
         </div>
         <div class="row">
-          <input id="searchInput" type="text" placeholder="Search title or location…" />
+          <input id="searchInput" type="text" placeholder="Search title or location…"/>
         </div>
       </div>
-
       <div id="list"></div>
     </aside>
 
     <div id="map">
-      <!-- Map overlay toggles -->
-      <div class="map-overlay" id="layerToggles">
+      <div class="map-overlay">
         <label><input type="checkbox" id="chkPast" checked> <span class="dot" style="background:#9aa0a6;"></span>Past</label>
         <label><input type="checkbox" id="chkSoon" checked> <span class="dot" style="background:#f2994a;"></span>Next 30 days</label>
         <label><input type="checkbox" id="chkFuture" checked> <span class="dot" style="background:#34a853;"></span>Future</label>
       </div>
-
-      <!-- Always-visible sidebar toggle; shows “<” when open, “>” when collapsed -->
-      <button id="toggleListFloating" title="Show/Hide list"><span id="chev">&lt;</span></button>
+      <button id="toggleListFloating"><span id="chev">&lt;</span></button>
     </div>
   </div>
 
   <script>
     // ---------- Helpers ----------
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    }
-    function linkify(text) {
-      if (!text) return "";
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      return text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
-    }
-    function formatDate(dateStr) {
-      if (!dateStr) return "";
-      const d = new Date(dateStr);
-      if (isNaN(d)) return escapeHtml(dateStr); // fallback if parsing fails
-      return d.toLocaleString("en-US", {
-        month: "long", day: "numeric", year: "numeric",
-        hour: "numeric", minute: "2-digit", hour12: true
-      });
-    }
-    function getVal(row, names) {
-      for (const n of names) {
-        const k = Object.keys(row).find(k => k && k.trim().toLowerCase() === n.toLowerCase());
-        if (k && row[k] != null && String(row[k]).trim() !== "") return row[k];
-      }
-      return "";
-    }
-    function distanceMiles(lat1, lon1, lat2, lon2) {
-      const toRad = d => d * Math.PI / 180;
-      const R = 3958.7613;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-    }
-    function classifyByDate(startISO) {
-      const now = new Date();
-      const start = new Date(startISO);
-      if (isNaN(start)) return {status: 'unknown', color: '#3367d6'};
-      if (start < now) return {status: 'past', color: '#9aa0a6'};
-      const days = (start - now) / (1000*60*60*24);
-      if (days <= 30) return {status: 'soon', color: '#f2994a'};
-      return {status: 'upcoming', color: '#34a853'};
-    }
-    function matchesQuery(ev, q) {
-      if (!q) return true;
-      q = q.toLowerCase();
-      return ev.title.toLowerCase().includes(q) || (ev.where || '').toLowerCase().includes(q);
-    }
+    function escapeHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+    function linkify(text){if(!text)return"";const urlRegex=/(https?:\/\/[^\s]+)/g;return text.replace(urlRegex,url=>`<a href="${url}" target="_blank" rel="noopener">${url}</a>`);}
+    function formatDate(dateStr){if(!dateStr)return"";const d=new Date(dateStr);if(isNaN(d))return escapeHtml(dateStr);return d.toLocaleString("en-US",{month:"long",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",hour12:true});}
+    function getVal(row,names){for(const n of names){const k=Object.keys(row).find(k=>k&&k.trim().toLowerCase()===n.toLowerCase());if(k&&row[k]!=null&&String(row[k]).trim()!=="")return row[k];}return"";}
+    function distanceMiles(lat1,lon1,lat2,lon2){const toRad=d=>d*Math.PI/180;const R=3958.7613;const dLat=toRad(lat2-lat1);const dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return R*(2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));}
+    function classifyByDate(startISO){const now=new Date();const start=new Date(startISO);if(isNaN(start))return{status:'unknown',color:'#3367d6'};if(start<now)return{status:'past',color:'#9aa0a6'};const days=(start-now)/(1000*60*60*24);if(days<=30)return{status:'soon',color:'#f2994a'};return{status:'upcoming',color:'#34a853'};}
+    function matchesQuery(ev,q){if(!q)return true;q=q.toLowerCase();return ev.title.toLowerCase().includes(q)||(ev.where||'').toLowerCase().includes(q);}
 
     // ---------- Config ----------
-    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
+    const SHEET_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
     // ---------- Map ----------
-    const map = L.map('map', { scrollWheelZoom: true }).setView([37.8, -96], 4);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-    // Zoom control bottom-right
+    const map=L.map('map',{scrollWheelZoom:true}).setView([37.8,-96],4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
     map.zoomControl.setPosition('bottomright');
 
-    // Layer groups for visibility toggles
-    const layers = {
-      past: L.layerGroup().addTo(map),
-      soon: L.layerGroup().addTo(map),
-      upcoming: L.layerGroup().addTo(map),
-    };
+    // Marker panes for priority (orange > green > gray)
+    map.createPane('paneSoon'); map.getPane('paneSoon').style.zIndex=650;
+    map.createPane('paneUpcoming'); map.getPane('paneUpcoming').style.zIndex=640;
+    map.createPane('panePast'); map.getPane('panePast').style.zIndex=630;
 
-    // ---------- Data & UI state ----------
-    let userLoc = null;    // {lat, lng}
-    let events = [];       // all events
+    // Layer groups
+    const layers={past:L.layerGroup().addTo(map),soon:L.layerGroup().addTo(map),upcoming:L.layerGroup().addTo(map)};
 
-    const appEl       = document.getElementById('app');
-    const listEl      = document.getElementById('list');
-    const locBtn      = document.getElementById('locBtn');
-    const locInput    = document.getElementById('locInput');
-    const setLocBtn   = document.getElementById('setLocBtn');
-    const searchInput = document.getElementById('searchInput');
-    const toggleListFloating = document.getElementById('toggleListFloating');
-    const chev        = document.getElementById('chev');
+    // ---------- Data & UI ----------
+    let userLoc=null;let events=[];
+    const appEl=document.getElementById('app');const listEl=document.getElementById('list');
+    const locBtn=document.getElementById('locBtn');const locInput=document.getElementById('locInput');const setLocBtn=document.getElementById('setLocBtn');const searchInput=document.getElementById('searchInput');
+    const toggleListFloating=document.getElementById('toggleListFloating');const chev=document.getElementById('chev');
+    const chkPast=document.getElementById('chkPast');const chkSoon=document.getElementById('chkSoon');const chkFuture=document.getElementById('chkFuture');
 
-    const chkPast   = document.getElementById('chkPast');
-    const chkSoon   = document.getElementById('chkSoon');
-    const chkFuture = document.getElementById('chkFuture');
+    const setChevron=()=>{chev.textContent=appEl.classList.contains('collapsed')?'>':'<';};
+    const toggleList=()=>{appEl.classList.toggle('collapsed');setChevron();setTimeout(()=>map.invalidateSize(),260);};
+    toggleListFloating.addEventListener('click',toggleList);setChevron();
 
-    const setChevron = () => {
-      // If list is visible, show “<” (collapse). If collapsed, show “>” (expand).
-      chev.textContent = appEl.classList.contains('collapsed') ? '>' : '<';
-    };
-    const toggleList = () => {
-      appEl.classList.toggle('collapsed');
-      setChevron();
-      setTimeout(() => map.invalidateSize(), 260);
-    };
-    toggleListFloating.addEventListener('click', toggleList);
-    setChevron();
+    // Restore saved location
+    try{const saved=localStorage.getItem('iw_user_loc');if(saved){userLoc=JSON.parse(saved);L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('Your saved location').openPopup();}}catch(_){}
 
-    // Restore saved manual location if present
-    try {
-      const saved = localStorage.getItem('iw_user_loc');
-      if (saved) {
-        userLoc = JSON.parse(saved);
-        L.circleMarker([userLoc.lat, userLoc.lng], {
-          radius: 6, color: '#1976d2', weight: 2, fillColor: '#1976d2', fillOpacity: 0.6
-        }).addTo(map).bindPopup('Your saved location').openPopup();
-      }
-    } catch (_) {}
+    locBtn.addEventListener('click',()=>{if(!navigator.geolocation){alert("Geolocation not supported.");return;}navigator.geolocation.getCurrentPosition(pos=>{userLoc={lat:pos.coords.latitude,lng:pos.coords.longitude};localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('You are here').openPopup();renderList();},err=>{alert("Couldn’t get your location ("+err.message+")");},{enableHighAccuracy:true,timeout:8000,maximumAge:60000});});
+    async function geocodeQuery(q){const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q);const res=await fetch(url,{headers:{'Accept-Language':'en'}});if(!res.ok)throw new Error('Geocode HTTP '+res.status);const arr=await res.json();if(!arr.length)throw new Error('No results');return{lat:parseFloat(arr[0].lat),lng:parseFloat(arr[0].lon),label:arr[0].display_name};}
+    setLocBtn.addEventListener('click',async()=>{const q=(locInput.value||'').trim();if(!q){alert('Enter a ZIP or City, State');return;}try{setLocBtn.disabled=true;setLocBtn.textContent='Setting…';const{lat,lng,label}=await geocodeQuery(q);userLoc={lat,lng};localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));L.circleMarker([lat,lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6}).addTo(map).bindPopup('Your location: '+escapeHtml(label)).openPopup();map.setView([lat,lng],8);renderList();}catch(e){alert('Could not find that place.');}finally{setLocBtn.disabled=false;setLocBtn.textContent='Set Location';}});
+    searchInput.addEventListener('input',renderList);
 
-    locBtn.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        alert("Geolocation isn’t supported by your browser.");
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          userLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          localStorage.setItem('iw_user_loc', JSON.stringify(userLoc));
-          L.circleMarker([userLoc.lat, userLoc.lng], {
-            radius: 6, color: '#1976d2', weight: 2, fillColor: '#1976d2', fillOpacity: 0.6
-          }).addTo(map).bindPopup('You are here').openPopup();
-          renderList();
-        },
-        err => {
-          alert("Couldn’t get your location (" + err.message + "). You can still set a ZIP manually.");
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-      );
-    });
+    [chkPast,chkSoon,chkFuture].forEach(chk=>{chk.addEventListener('change',()=>{updateLayerVisibility();renderList();});});
+    function updateLayerVisibility(){toggleLayer(chkPast.checked,layers.past);toggleLayer(chkSoon.checked,layers.soon);toggleLayer(chkFuture.checked,layers.upcoming);}
+    function toggleLayer(show,layer){if(show)map.addLayer(layer);else map.removeLayer(layer);}
 
-    // Manual geocode via OpenStreetMap Nominatim
-    async function geocodeQuery(q) {
-      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-      if (!res.ok) throw new Error('Geocode HTTP ' + res.status);
-      const arr = await res.json();
-      if (!arr.length) throw new Error('No results for "' + q + '"');
-      return { lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon), label: arr[0].display_name };
-    }
+    Papa.parse(SHEET_CSV+"&_ts="+Date.now(),{download:true,header:true,skipEmptyLines:true,complete:function(results){const rows=(results.data||[]).filter(r=>r&&Object.keys(r).length);events=rows.map(r=>rowToEvent(r)).filter(Boolean);renderMarkers();updateLayerVisibility();renderList();}});
 
-    setLocBtn.addEventListener('click', async () => {
-      const q = (locInput.value || '').trim();
-      if (!q) { alert('Enter a ZIP or City, State'); return; }
-      try {
-        setLocBtn.disabled = true; setLocBtn.textContent = 'Setting…';
-        const { lat, lng, label } = await geocodeQuery(q);
-        userLoc = { lat, lng };
-        localStorage.setItem('iw_user_loc', JSON.stringify(userLoc));
-        L.circleMarker([lat, lng], {
-          radius: 6, color: '#1976d2', weight: 2, fillColor: '#1976d2', fillOpacity: 0.6
-        }).addTo(map).bindPopup('Your location: ' + escapeHtml(label)).openPopup();
-        map.setView([lat, lng], 8);
-        renderList();
-      } catch (e) {
-        alert('Could not find that place. Try a ZIP or "City, State".');
-        console.error(e);
-      } finally {
-        setLocBtn.disabled = false; setLocBtn.textContent = 'Set Location';
-      }
-    });
+    function rowToEvent(r){const title=(getVal(r,["title","Title"])||"Untitled Event").toString().trim();const start=(getVal(r,["start","Start"])||"").toString().trim();const end=(getVal(r,["end","End"])||"").toString().trim();const where=(getVal(r,["location","Location"])||"").toString().trim();const link=(getVal(r,["htmlLink","HtmlLink","link","Link"])||"").toString().trim();const rawDesc=(getVal(r,["description","Description"])||"").toString();const lat=parseFloat((getVal(r,["lat","Lat","latitude","Latitude"])||"").toString().trim());const lng=parseFloat((getVal(r,["lng","Lng","longitude","Longitude"])||"").toString().trim());if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;const when=formatDate(start)+(end?" – "+formatDate(end):"");const desc=linkify(escapeHtml(rawDesc));const klass=classifyByDate(start);return{title,start,end,when,where,link,rawDesc,desc,lat,lng,color:klass.color,status:klass.status,distance:null,marker:null};}
 
-    searchInput.addEventListener('input', renderList);
+    function renderMarkers(){
+      layers.past.clearLayers(); layers.soon.clearLayers(); layers.upcoming.clearLayers();
 
-    // Map layer toggles (over the map)
-    [chkPast, chkSoon, chkFuture].forEach(chk => {
-      chk.addEventListener('change', () => {
-        updateLayerVisibility();
-        renderList(); // list respects Soon/Future toggles (Past always hidden)
-      });
-    });
-    function updateLayerVisibility() {
-      toggleLayer(chkPast.checked, layers.past);
-      toggleLayer(chkSoon.checked, layers.soon);
-      toggleLayer(chkFuture.checked, layers.upcoming);
-    }
-    function toggleLayer(show, layer) {
-      if (show) map.addLayer(layer);
-      else map.removeLayer(layer);
-    }
-
-    // ---------- Load CSV & add markers ----------
-    Papa.parse(SHEET_CSV + "&_ts=" + Date.now(), {
-      download: true, header: true, skipEmptyLines: true,
-      complete: function(results) {
-        const rows = (results.data || []).filter(r => r && Object.keys(r).length);
-        console.log("Loaded rows:", rows.length, "Columns:", Object.keys(rows[0] || {}));
-        events = rows.map(r => rowToEvent(r)).filter(Boolean);
-        renderMarkers();         // fill layer groups
-        updateLayerVisibility(); // honor overlay toggles
-        renderList();            // list excludes past and follows overlay state
-      },
-      error: function(err) {
-        console.error("CSV load error:", err);
-        alert("Could not load event data. Make sure your sheet tab is published as CSV.");
-      }
-    });
-
-    function rowToEvent(r) {
-      const title   = (getVal(r, ["title","Title"]) || "Untitled Event").toString().trim();
-      const start   = (getVal(r, ["start","Start"]) || "").toString().trim();
-      const end     = (getVal(r, ["end","End"])     || "").toString().trim();
-      const where   = (getVal(r, ["location","Location"]) || "").toString().trim();
-      const link    = (getVal(r, ["htmlLink","HtmlLink","link","Link"]) || "").toString().trim();
-      const rawDesc = (getVal(r, ["description","Description"]) || "").toString();
-
-      const latStr = (getVal(r, ["lat","Lat","latitude","Latitude","y","Y","geo_lat","Geo_Lat"]) || "").toString().trim();
-      const lngStr = (getVal(r, ["lng","Lng","long","Long","lon","Lon","longitude","Longitude","x","X","geo_lng","Geo_Lng"]) || "").toString().trim();
-      const lat = parseFloat(latStr);
-      const lng = parseFloat(lngStr);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-      const when = formatDate(start) + (end ? " – " + formatDate(end) : "");
-      const desc = linkify(escapeHtml(rawDesc));
-      const klass = classifyByDate(start);
-
-      return {
-        title, start, end, when, where, link, rawDesc, desc, lat, lng,
-        color: klass.color, status: klass.status, distance: null, marker: null
-      };
-    }
-
-    function renderMarkers() {
-      // Clear existing layers (if reloading)
-      layers.past.clearLayers();
-      layers.soon.clearLayers();
-      layers.upcoming.clearLayers();
-
-      events.forEach(ev => {
+      events.forEach(ev=>{
         const popupHtml =
           `<div class="popup">
              <h3>${escapeHtml(ev.title)}</h3>
@@ -345,69 +169,66 @@
              ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>` : ""}
              ${ev.rawDesc ? `<div class="desc">${ev.desc}</div>` : ""}
            </div>`;
+
+        const paneName = ev.status==='soon' ? 'paneSoon' : ev.status==='upcoming' ? 'paneUpcoming' : 'panePast';
+
         const m = L.circleMarker([ev.lat, ev.lng], {
-          radius: 8, color: ev.color, weight: 2, fillColor: ev.color, fillOpacity: 0.85
+          pane: paneName,
+          radius: 8,
+          color: ev.color,
+          weight: 2,
+          fillColor: ev.color,
+          fillOpacity: 0.85
         }).bindPopup(popupHtml);
 
-        if (ev.status === 'past') m.addTo(layers.past);
-        else if (ev.status === 'soon') m.addTo(layers.soon);
+        if (ev.status==='past') m.addTo(layers.past);
+        else if (ev.status==='soon') m.addTo(layers.soon);
         else m.addTo(layers.upcoming);
 
         ev.marker = m;
       });
     }
 
-    function renderList() {
-      const q = (searchInput.value || '').trim();
+    function renderList(){
+      const q=(searchInput.value||'').trim();
+      const allowSoon=chkSoon.checked;
+      const allowFuture=chkFuture.checked;
 
-      // Allowed statuses from overlay (list still always hides 'past')
-      const allowSoon   = chkSoon.checked;
-      const allowFuture = chkFuture.checked;
-
-      const filtered = events.filter(ev =>
-        ev.status !== 'past' &&
-        ( (ev.status === 'soon'   && allowSoon) ||
-          (ev.status === 'upcoming' && allowFuture) ) &&
-        matchesQuery(ev, q)
+      const filtered=events.filter(ev =>
+        ev.status!=='past' &&
+        ((ev.status==='soon' && allowSoon) || (ev.status==='upcoming' && allowFuture)) &&
+        matchesQuery(ev,q)
       );
 
-      // compute distance if possible (used for display only)
-      if (userLoc) {
-        filtered.forEach(ev => {
-          ev.distance = distanceMiles(userLoc.lat, userLoc.lng, ev.lat, ev.lng);
-        });
+      if(userLoc){
+        filtered.forEach(ev => ev.distance = distanceMiles(userLoc.lat,userLoc.lng,ev.lat,ev.lng));
       }
 
-      // Sort by date then title
-      const sorted = [...filtered].sort((a,b) => {
-        const da = new Date(a.start), db = new Date(b.start);
-        const t = (isNaN(da) ? Infinity : da) - (isNaN(db) ? Infinity : db);
-        return t !== 0 ? t : a.title.localeCompare(b.title);
+      const sorted=[...filtered].sort((a,b)=>{
+        const da=new Date(a.start), db=new Date(b.start);
+        const t=(isNaN(da)?Infinity:da)-(isNaN(db)?Infinity:db);
+        return t!==0 ? t : a.title.localeCompare(b.title);
       });
 
-      listEl.innerHTML = '';
-      if (!sorted.length) {
-        const div = document.createElement('div');
-        div.className = 'meta';
-        div.textContent = 'No events match your filters.';
-        listEl.appendChild(div);
+      listEl.innerHTML='';
+      if(!sorted.length){
+        listEl.innerHTML='<div class="meta">No events match your filters.</div>';
         return;
       }
 
-      sorted.forEach(ev => {
-        const dist = (userLoc && Number.isFinite(ev.distance)) ? ` • ${ev.distance.toFixed(1)} mi` : '';
-        const statusDot = `<span class="dot" style="background:${ev.color};"></span>`;
-        const item = document.createElement('div');
-        item.className = 'item';
-        item.innerHTML = `
-          <h4>${statusDot}${escapeHtml(ev.title)}</h4>
-          <div class="meta">${ev.when || ''}${dist}</div>
-          ${ev.where ? `<div class="meta">${escapeHtml(ev.where)}</div>` : ''}
-          ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">Open in Google Calendar</a></div>` : ''}
-        `;
-        item.addEventListener('click', () => {
-          if (ev.marker) {
-            map.setView([ev.lat, ev.lng], 11);
+      sorted.forEach(ev=>{
+        const dist=(userLoc && Number.isFinite(ev.distance)) ? ` • ${ev.distance.toFixed(1)} mi` : '';
+        const statusDot=`<span class="dot" style="background:${ev.color};"></span>`;
+        const item=document.createElement('div');
+        item.className='item';
+        item.innerHTML=
+          `<h4>${statusDot}${escapeHtml(ev.title)}</h4>
+           <div class="meta">${ev.when || ''}${dist}</div>
+           ${ev.where ? `<div class="meta">${escapeHtml(ev.where)}</div>` : ''}
+           ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">Open in Google Calendar</a></div>` : ''}`;
+        item.addEventListener('click',()=>{
+          if(ev.marker){
+            map.setView([ev.lat,ev.lng],11);
             ev.marker.openPopup();
           }
         });
