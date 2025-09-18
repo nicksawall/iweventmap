@@ -8,14 +8,14 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" crossorigin="anonymous">
   <!-- Page styles -->
-  <link rel="stylesheet" href="./styles.css?v=13">
+  <link rel="stylesheet" href="./styles.css?v=14">
 
   <!-- Leaflet JS (defer) -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js" crossorigin="anonymous" defer></script>
   <!-- Papa Parse (defer) -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" crossorigin="anonymous" defer></script>
   <!-- Your app JS (defer) -->
-  <script src="./app.js?v=13" defer></script>
+  <script src="./app.js?v=14" defer></script>
 </head>
 <body>
   <div id="app" class="collapsed">
@@ -41,9 +41,9 @@
 
     <div id="map" aria-label="Map">
       <div class="map-overlay" role="group" aria-label="Map toggles">
-        <label><input type="checkbox" id="chkPast" checked> <span class="dot" style="background:#9aa0a6;"></span>Past</label>
-        <label><input type="checkbox" id="chkSoon" checked> <span class="dot" style="background:#f2994a;"></span>Next 30 days</label>
-        <label><input type="checkbox" id="chkFuture" checked> <span class="dot" style="background:#34a853;"></span>Future</label>
+        <label><input type="checkbox" id="chkPast" checked> <img src="logo-past.png" alt="Past" class="dot-img"> Past</label>
+        <label><input type="checkbox" id="chkSoon" checked> <img src="logo-soon.png" alt="Next 30 days" class="dot-img"> Next 30 days</label>
+        <label><input type="checkbox" id="chkFuture" checked> <img src="logo-future.png" alt="Future" class="dot-img"> Future</label>
       </div>
 
       <!-- Reset View -->
