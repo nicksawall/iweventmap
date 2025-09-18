@@ -28,7 +28,7 @@
     // === Your published CSV (you can swap for export?format=csv&gid=... if you prefer) ===
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
-    // Initialize map (center USA by default; will fit to markers after load)
+    // Initialize  (center USA by default; will fit to markers after load)
     const map = L.map('map', { scrollWheelZoom: true }).setView([37.8, -96], 4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -76,7 +76,7 @@
           bounds.push([lat, lng]);
         });
 
-        if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+        if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 5 });
         else console.warn("No rows with numeric lat/lng found. Check your CSV columns and values.");
       },
       error: function(err) {
