@@ -34,6 +34,7 @@ html, body { height: 100%; margin: 0; }
 .leaflet-container { height: 100% !important; width: 100% !important; }
 .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
+/* Overlay toggles */
 .map-overlay {
   position: absolute;
   top: 12px; left: 12px;
@@ -46,6 +47,17 @@ html, body { height: 100%; margin: 0; }
 .map-overlay label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
+/* Reset button + HUD */
+.btn-reset{
+  position:absolute; top:12px; right:12px; z-index:1004;
+  border:1px solid #ddd; padding:6px 8px; background:#ffffffcc; border-radius:6px; cursor:pointer;
+}
+.hud{
+  position:absolute; bottom:12px; right:12px; z-index:1004;
+  background:#ffffffcc; border:1px solid #ddd; padding:4px 6px; border-radius:6px; font:12px system-ui;
+}
+
+/* Drawer toggle */
 #toggleListFloating {
   position: absolute;
   top: 52px; left: 12px;
@@ -60,6 +72,7 @@ html, body { height: 100%; margin: 0; }
   line-height: 1;
 }
 
+/* Controls */
 .controls { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
 .row { display: flex; gap: 6px; align-items: center; }
 .controls button, .controls input, .controls select {
@@ -69,10 +82,12 @@ html, body { height: 100%; margin: 0; }
 #locInput, #searchInput { flex: 1; min-width: 140px; }
 #sortSel { min-width: 150px; }
 
+/* List items */
 .item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; }
 .item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
 .meta { font-size: 12.5px; color: #444; }
 
+/* Popups */
 .popup h3 { margin: 0 0 4px; font-size: 16px; }
 .popup .meta { font-size: 13px; margin: 2px 0; color: #333; }
 .popup .desc { margin-top: 6px; white-space: pre-wrap; max-width: 320px; }
@@ -115,3 +130,4 @@ html, body { height: 100%; margin: 0; }
   padding: 6px 8px; font-size: 12.5px;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
+
