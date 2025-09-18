@@ -27,13 +27,19 @@ body { background:#dde6f1; } /* debug background */
   position: relative;
   width: 100%;
   height: 100vh;     /* desktop solid height */
-  min-height: 520px; /* a bit taller for safety */
+  min-height: 520px; /* safety min */
   z-index: 1;
   background: #eef3f8; /* visible even before tiles */
-  /* border: 2px dashed #4a90e2; */ /* uncomment if you want to see the box */
 }
 .leaflet-container { height: 100% !important; width: 100% !important; }
-/* Remove custom pane stacking — use Leaflet defaults */
+
+/* Force Leaflet tiles to show (workaround for fade/animation race) */
+.leaflet-tile {
+  opacity: 1 !important;
+  filter: none !important;
+  transition: none !important;
+}
+
 .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
 .map-overlay {
@@ -131,10 +137,3 @@ body { background:#dde6f1; } /* debug background */
   padding: 6px 8px; font-size: 12.5px;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
-/* Force Leaflet tiles fully visible (work around fade/animation glitches) */
-.leaflet-tile {
-  opacity: 1 !important;
-  filter: none !important;
-  transition: none !important;
-}
-
