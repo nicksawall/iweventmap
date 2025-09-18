@@ -135,8 +135,6 @@
       `UID:${uid}`,`DTSTAMP:${dt(new Date())}`,`DTSTART:${dt(ev.startDate)}`,
       ev.endDate?`DTEND:${dt(ev.endDate)}`:null,
       `SUMMARY:${(ev.title||"IW Event").replace(/\n/g," ")}`,
-      ev.location?`LOCATION:${ev.location.replace(/\n/g," ")}`:null,
-      ev.desc?`DESCRIPTION:${ev.desc.replace(/\n/g," ")}`:null,
       "END:VEVENT","END:VCALENDAR"
     ].filter(Boolean).join("\r\n");
     return "data:text/calendar;charset=utf-8,"+encodeURIComponent(lines);
@@ -166,7 +164,7 @@
         </div>
         ${strippedDesc ? `<div class="desc">${linkify(strippedDesc)}</div>` : ""}
         <div class="actions">
-          ${detailUrl ? `<a class="btn primary" href="${detailUrl}" target="_blank" rel="noopener">Event Details</a>` : ""}
+          ${detailUrl ? `<a class="btn primary" href="${detailUrl}" target="_blank" rel="noopener">Register Here!</a>` : ""}
           ${ev.addIcs ? `<a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>` : ""}
         </div>`;
       frag.appendChild(card);
