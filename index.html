@@ -76,11 +76,9 @@
           bounds.push([lat, lng]);
         });
 
-        if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 5 });
-      } else {map.setView([37.8, -96], 4);
-             }
-        else console.warn("No rows with numeric lat/lng found. Check your CSV columns and values.");
-      },
+       // Always start centered on USA zoom 4
+        map.setView([37.8, -96], 4);
+             
       error: function(err) {
         console.error("CSV load error:", err);
         alert("Could not load event data. Make sure your sheet tab is published as CSV.");
