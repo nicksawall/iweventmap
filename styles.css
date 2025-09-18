@@ -131,3 +131,10 @@ body { background:#dde6f1; } /* debug background */
   padding: 6px 8px; font-size: 12.5px;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
+/* Force Leaflet tiles fully visible (work around fade/animation glitches) */
+.leaflet-tile {
+  opacity: 1 !important;
+  filter: none !important;
+  transition: none !important;
+}
+
