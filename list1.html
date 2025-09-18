@@ -162,7 +162,6 @@
           </div>
           <div><div class="title">${escapeHtml(ev.title||"Untitled Event")}</div></div>
         </div>
-        ${strippedDesc ? `<div class="desc">${linkify(strippedDesc)}</div>` : ""}
         <div class="actions">
           ${detailUrl ? `<a class="btn primary" href="${detailUrl}" target="_blank" rel="noopener">Register Here!</a>` : ""}
           ${ev.addIcs ? `<a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>` : ""}
