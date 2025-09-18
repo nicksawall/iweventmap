@@ -3,15 +3,23 @@
 html, body { height: 100%; margin: 0; }
 body { background:#dde6f1; } /* debug background */
 
+/* Make the grid explicit so the map never lands in the 0px column */
 #app {
   height: 100vh;
   min-height: 480px;
   display: grid;
   grid-template-columns: var(--panel-w) 1fr;
+  grid-template-areas: "sidebar map";   /* ADD THIS */
   transition: grid-template-columns .25s ease;
   position: relative;
 }
+
+#sidebar { grid-area: sidebar; }  /* ADD THIS */
+#map { grid-area: map; }          /* ADD THIS */
+
+/* Collapsed still works; column 1 shrinks to 0px but the map remains in column 2 */
 #app.collapsed { grid-template-columns: 0px 1fr; }
+
 
 #sidebar {
   border-right: 1px solid #e5e5e5;
