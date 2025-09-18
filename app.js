@@ -38,6 +38,28 @@ function setChevron(){
                   || (!appEl.classList.contains('drawer-open') && isMobile()) ? '>' : '<';
 }
 
+// ===== Icons =====
+const ICONS = {
+  past: L.icon({
+    iconUrl: 'logo-past.png',
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],   // bottom-center
+    popupAnchor: [0, -28]
+  }),
+  soon: L.icon({
+    iconUrl: 'logo-soon.png',
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28]
+  }),
+  upcoming: L.icon({
+    iconUrl: 'logo-future.png',
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28]
+  })
+};
+
 // ===== Map init =====
 function ensureDesktopHeight(){
   const mapDiv = document.getElementById('map');
@@ -80,7 +102,7 @@ function initMap(){
   setTimeout(()=>map.invalidateSize(), 50);
   setTimeout(()=>map.invalidateSize(), 300);
 
-  // Priority panes (orange > green > gray)
+  // Priority panes (ensure Next 30 > Future > Past)
   map.createPane('paneSoon');     map.getPane('paneSoon').style.zIndex = 650;
   map.createPane('paneUpcoming'); map.getPane('paneUpcoming').style.zIndex = 640;
   map.createPane('panePast');     map.getPane('panePast').style.zIndex = 630;
@@ -128,10 +150,10 @@ function renderMarkers(){
          ${ev.rawDesc ? `<div class="desc">${ev.desc}</div>` : ""}
        </div>`;
 
-    const pane = ev.status==='soon' ? 'paneSoon' : ev.status==='upcoming' ? 'paneUpcoming' : 'panePast';
-    const m = L.circleMarker([ev.lat, ev.lng], {
-      pane, radius: 8, color: ev.color, weight: 2, fillColor: ev.color, fillOpacity: 0.85
-    }).bindPopup(popup);
+    const paneName = ev.status==='soon' ? 'paneSoon' : ev.status==='upcoming' ? 'paneUpcoming' : 'panePast';
+    const icon = ev.status==='soon' ? ICONS.soon : ev.status==='upcoming' ? ICONS.upcoming : ICONS.past;
+
+    const m = L.marker([ev.lat, ev.lng], { icon, pane: paneName }).bindPopup(popup);
 
     if (ev.status==='past') layers.past.addLayer(m);
     else if (ev.status==='soon') layers.soon.addLayer(m);
@@ -165,7 +187,10 @@ function renderList(){
 
   listEl.innerHTML = filtered.map(ev =>
     `<div class="item">
-      <h4><span class="dot" style="background:${ev.color};"></span>${escapeHtml(ev.title)}</h4>
+      <h4>
+        <img src="${ev.status==='soon' ? 'logo-soon.png' : 'logo-future.png'}" alt="" />
+        ${escapeHtml(ev.title)}
+      </h4>
       <div class="meta">${ev.when}</div>
       ${ev.where ? `<div class="meta">${escapeHtml(ev.where)}</div>` : ''}
       ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">Open in Google Calendar</a></div>` : ''}
@@ -248,7 +273,7 @@ sortSel?.addEventListener('change', ()=>{ renderList(); });
 window.addEventListener('DOMContentLoaded', async ()=>{
   initMap();
 
-  // All map layers ON by default (checkboxes are already checked in HTML)
+  // All map layers ON by default (checkboxes are checked in HTML)
   // List will never show 'past' items by design
 
   // Extra nudge loop (handles late CSS/layout)
