@@ -77,6 +77,8 @@
         });
 
         if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 5 });
+      } else {map.setView([37.8, -96], 4);
+             }
         else console.warn("No rows with numeric lat/lng found. Check your CSV columns and values.");
       },
       error: function(err) {
