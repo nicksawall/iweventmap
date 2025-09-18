@@ -25,10 +25,11 @@
   <div id="map"></div>
 
   <script>
-    // === Your published CSV (you can swap for export?format=csv&gid=... if you prefer) ===
+    // === Your published CSV ===
+    // If you change tabs, update gid accordingly.
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
-    // Initialize  (center USA by default; will fit to markers after load)
+    // Initialize map (always start over USA)
     const map = L.map('map', { scrollWheelZoom: true }).setView([37.8, -96], 4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -44,14 +45,13 @@
         const rows = (results.data || []).filter(r => r && Object.keys(r).length);
         console.log("Loaded rows:", rows.length, "Columns:", Object.keys(rows[0] || {}));
 
-        const bounds = [];
         rows.forEach(r => {
           // Be forgiving about header capitalization
-          const title = (r.title || r.Title || "Untitled Event").toString().trim();
-          const start = (r.start || r.Start || "").toString().trim();
-          const end   = (r.end   || r.End   || "").toString().trim();
-          const where = (r.location || r.Location || "").toString().trim();
-          const link  = (r.htmlLink || r.HtmlLink || r.Link || "").toString().trim();
+          const title   = (r.title || r.Title || "Untitled Event").toString().trim();
+          const start   = (r.start || r.Start || "").toString().trim();
+          const end     = (r.end   || r.End   || "").toString().trim();
+          const where   = (r.location || r.Location || "").toString().trim();
+          const link    = (r.htmlLink || r.HtmlLink || r.Link || "").toString().trim();
           const rawDesc = (r.description || r.Description || "").toString();
 
           // lat/lng must be numeric
@@ -59,9 +59,9 @@
           const lng = parseFloat((r.lng || r.Lng || r.Long || r.Longitude || "").toString().trim());
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-          // Build popup (escape first, then linkify)
+          // Build popup (escape first, then linkify; format dates to Month Day, Year, h:mm AM/PM)
+          const when = formatDate(start) + (end ? " – " + formatDate(end) : "");
           const desc = linkify(escapeHtml(rawDesc));
-          const when = escapeHtml(start) + (end ? " – " + escapeHtml(end) : "");
 
           const popupHtml =
             `<div class="popup">
@@ -73,18 +73,42 @@
              </div>`;
 
           L.marker([lat, lng]).addTo(map).bindPopup(popupHtml);
-          bounds.push([lat, lng]);
         });
 
-       // Always start centered on USA zoom 4
-        map.setView([37.8, -96], 4);
+        // We intentionally do NOT fitBounds; we keep the default USA view.
       },
-             
       error: function(err) {
         console.error("CSV load error:", err);
         alert("Could not load event data. Make sure your sheet tab is published as CSV.");
       }
     });
+
+    // Helpers
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function linkify(text) {
+      if (!text) return "";
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
+    }
+    function formatDate(dateStr) {
+      if (!dateStr) return "";
+      const d = new Date(dateStr);
+      if (isNaN(d)) return escapeHtml(dateStr); // fallback to raw if parsing fails
+      return d.toLocaleString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
+    }
   </script>
 </body>
 </html>
