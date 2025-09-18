@@ -1,7 +1,7 @@
 :root { --panel-w: 360px; }
 
 html, body { height: 100%; margin: 0; }
-body { background:#dde6f1; } /* visible background for debugging "white page" */
+body { background:#dde6f1; } /* debug background */
 
 #app {
   height: 100vh;
@@ -27,13 +27,13 @@ body { background:#dde6f1; } /* visible background for debugging "white page" */
   position: relative;
   width: 100%;
   height: 100vh;     /* desktop solid height */
-  min-height: 480px; /* slightly larger min to avoid short viewports */
+  min-height: 520px; /* a bit taller for safety */
   z-index: 1;
   background: #eef3f8; /* visible even before tiles */
-  outline: 0; /* set to 2px solid #4a90e2; if you want to see the box */
+  /* border: 2px dashed #4a90e2; */ /* uncomment if you want to see the box */
 }
 .leaflet-container { height: 100% !important; width: 100% !important; }
-.leaflet-pane { z-index: 400; } /* ensure map panes are above page background */
+/* Remove custom pane stacking — use Leaflet defaults */
 .leaflet-container { font: 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
 .map-overlay {
