@@ -24,8 +24,6 @@ const chkSoon = document.getElementById('chkSoon');
 const chkFuture = document.getElementById('chkFuture');
 const loadingBadge = document.getElementById('loading');
 const resetBtn = document.getElementById('resetBtn');
-const hud = document.getElementById('hud');
-
 
 // ===== Utils =====
 function escapeHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
@@ -40,7 +38,6 @@ function setChevron(){
                   || (!appEl.classList.contains('drawer-open') && isMobile()) ? '>' : '<';
 }
 
-
 // ===== Map init =====
 function ensureDesktopHeight(){
   const mapDiv = document.getElementById('map');
@@ -49,7 +46,7 @@ function ensureDesktopHeight(){
     console.warn('Map container small at init, forcing 820px height (desktop fallback)');
     mapDiv.style.height = '820px';
     document.getElementById('app').style.height = 'auto';
-    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
+    setTimeout(()=>map.invalidateSize(), 50);
   }
 }
 
@@ -76,19 +73,10 @@ function initMap(){
     keepBuffer: 2
   }).addTo(map);
   carto.on('load', ()=>console.log('Basemap tiles loaded (CARTO).'));
-  carto.on('tileload', ()=>console.log('Tile loaded.'));
   carto.on('tileerror', (e)=>console.warn('Tile error (CARTO):', e));
 
   // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
-
-
-// Log container size a few times (helps catch a zero-height race)
-const mapDiv = document.getElementById('map');
-console.log('Map size @init:', mapDiv.clientWidth, mapDiv.clientHeight);
-setTimeout(()=>console.log('Map size @+200ms:', mapDiv.clientWidth, mapDiv.clientHeight), 200);
-setTimeout(()=>console.log('Map size @+800ms:', mapDiv.clientWidth, mapDiv.clientHeight), 800);
-
   setTimeout(()=>map.invalidateSize(), 50);
   setTimeout(()=>map.invalidateSize(), 300);
 
@@ -101,24 +89,11 @@ setTimeout(()=>console.log('Map size @+800ms:', mapDiv.clientWidth, mapDiv.clien
              soon: L.layerGroup().addTo(map),
              upcoming: L.layerGroup().addTo(map) };
 
-  requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
-  setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
-  function ensureDesktopHeight(){
-  const mapDiv = document.getElementById('map');
-  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
-  if (h < 200 || w < 200) {
-    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
-    mapDiv.style.height = '820px';
-    document.getElementById('app').style.height = 'auto';
-    // After forcing height, make sure the map paints and sits on top
-    map.invalidateSize();
-    setTimeout(()=>map.invalidateSize(), 50);
-    setTimeout(()=>map.invalidateSize(), 300);
-    mapDiv.style.zIndex = 5; // belt & suspenders
-  }
-}
+  requestAnimationFrame(()=>map.invalidateSize());
+  setTimeout(()=>map.invalidateSize(), 400);
+  ensureDesktopHeight();
 
-  window.addEventListener('resize', ()=>{ map.invalidateSize(); updateHud(); });
+  window.addEventListener('resize', ()=>map.invalidateSize());
 }
 
 // ===== Data mapping =====
@@ -166,20 +141,21 @@ function renderMarkers(){
   });
 
   // Ensure groups reflect checkboxes
-  if (chkPast.checked && !map.hasLayer(layers.past)) map.addLayer(layers.past);
-  if (chkSoon.checked && !map.hasLayer(layers.soon)) map.addLayer(layers.soon);
-  if (chkFuture.checked && !map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
+  if (chkPast?.checked && !map.hasLayer(layers.past)) map.addLayer(layers.past);
+  if (chkSoon?.checked && !map.hasLayer(layers.soon)) map.addLayer(layers.soon);
+  if (chkFuture?.checked && !map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
 
-  setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 250);
+  setTimeout(()=>map.invalidateSize(), 250);
 }
 
 function renderList(){
-  const q = (searchInput.value || '').trim();
-  const showSoon   = chkSoon.checked;
-  const showFuture = chkFuture.checked;
+  const q = (searchInput?.value || '').trim();
+  const showSoon   = chkSoon?.checked ?? true;
+  const showFuture = chkFuture?.checked ?? true;
 
+  // Never show past events in the list
   const filtered = events.filter(ev =>
-    ev.status !== 'past' &&                              // <— never show past in the list
+    ev.status !== 'past' &&
     (
       (ev.status === 'soon'     && showSoon) ||
       (ev.status === 'upcoming' && showFuture)
@@ -197,30 +173,28 @@ function renderList(){
   ).join('');
 }
 
-
 // ===== UI wiring =====
-function openDrawer(){ appEl.classList.remove('collapsed'); appEl.classList.add('drawer-open'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
-function closeDrawer(){ appEl.classList.remove('drawer-open'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
+function openDrawer(){ appEl.classList.remove('collapsed'); appEl.classList.add('drawer-open'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
+function closeDrawer(){ appEl.classList.remove('drawer-open'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
 function toggleList(){
   if (isMobile()) { appEl.classList.contains('drawer-open') ? closeDrawer() : openDrawer(); }
-  else { appEl.classList.toggle('collapsed'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
+  else { appEl.classList.toggle('collapsed'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
 }
-toggleListFloating.addEventListener('click', toggleList);
-backdrop.addEventListener('click', closeDrawer);
+toggleListFloating?.addEventListener('click', toggleList);
+backdrop?.addEventListener('click', closeDrawer);
 
 // Reset view (fit to all markers)
-resetBtn.addEventListener('click', ()=>{
+resetBtn?.addEventListener('click', ()=>{
   if (events.length) {
     const b = L.latLngBounds(events.map(e => [e.lat, e.lng]));
     map.fitBounds(b, { padding: [28,28], maxZoom: 7 });
   } else {
     map.fitBounds(USA_BOUNDS, { padding: [20,20] });
   }
-  // Ensure groups reflect checkboxes
-  if (chkPast.checked && !map.hasLayer(layers.past)) map.addLayer(layers.past);
-  if (chkSoon.checked && !map.hasLayer(layers.soon)) map.addLayer(layers.soon);
-  if (chkFuture.checked && !map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
-  setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 150);
+  if (chkPast?.checked && !map.hasLayer(layers.past)) map.addLayer(layers.past);
+  if (chkSoon?.checked && !map.hasLayer(layers.soon)) map.addLayer(layers.soon);
+  if (chkFuture?.checked && !map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
+  setTimeout(()=>map.invalidateSize(), 150);
 });
 
 // Location controls
@@ -228,7 +202,7 @@ function enableDistanceSort(){
   const distOpt=[...sortSel.options].find(o=>o.value==='distance');
   if(distOpt) distOpt.disabled=false;
 }
-locBtn.addEventListener('click',()=>{
+locBtn?.addEventListener('click',()=>{
   if(!navigator.geolocation){alert("Geolocation not supported.");return;}
   navigator.geolocation.getCurrentPosition(
     pos=>{
@@ -236,14 +210,14 @@ locBtn.addEventListener('click',()=>{
       localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));
       L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
         .addTo(map).bindPopup('You are here').openPopup();
-      enableDistanceSort(); renderList(); updateHud();
+      enableDistanceSort(); renderList();
     },
     err=>{ alert("Couldn’t get your location ("+err.message+")"); },
     { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
   );
 });
-setLocBtn.addEventListener('click', async ()=>{
-  const q=(locInput.value||'').trim();
+setLocBtn?.addEventListener('click', async ()=>{
+  const q=(locInput?.value||'').trim();
   if(!q){ alert('Enter a ZIP or City, State'); return; }
   try{
     const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),{headers:{'Accept-Language':'en'}});
@@ -253,20 +227,20 @@ setLocBtn.addEventListener('click', async ()=>{
     L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
       .addTo(map).bindPopup('Your location set').openPopup();
     map.setView([userLoc.lat,userLoc.lng],8);
-    enableDistanceSort(); renderList(); updateHud();
+    enableDistanceSort(); renderList();
   }catch(e){ alert('Could not find that place.'); }
 });
 
-searchInput.addEventListener('input', ()=>{ renderList(); });
-sortSel.addEventListener('change', ()=>{ renderList(); });
+searchInput?.addEventListener('input', ()=>{ renderList(); });
+sortSel?.addEventListener('change', ()=>{ renderList(); });
 
 // Checkbox toggles update map and list
 [chkPast,chkSoon,chkFuture].forEach(chk=>{
-  chk.addEventListener('change',()=>{
-    if(chkPast.checked) map.addLayer(layers.past); else map.removeLayer(layers.past);
-    if(chkSoon.checked) map.addLayer(layers.soon); else map.removeLayer(layers.soon);
-    if(chkFuture.checked) map.addLayer(layers.upcoming); else map.removeLayer(layers.upcoming);
-    renderList(); updateHud();
+  chk?.addEventListener('change',()=>{
+    if(chkPast?.checked) map.addLayer(layers.past); else map.removeLayer(layers.past);
+    if(chkSoon?.checked) map.addLayer(layers.soon); else map.removeLayer(layers.soon);
+    if(chkFuture?.checked) map.addLayer(layers.upcoming); else map.removeLayer(layers.upcoming);
+    renderList();
   });
 });
 
@@ -274,8 +248,8 @@ sortSel.addEventListener('change', ()=>{ renderList(); });
 window.addEventListener('DOMContentLoaded', async ()=>{
   initMap();
 
-  // Default: hide past on first load (both list & map)
-  chkPast.checked = false;
+  // All map layers ON by default (checkboxes are already checked in HTML)
+  // List will never show 'past' items by design
 
   // Extra nudge loop (handles late CSS/layout)
   let ticks=0; const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=8) clearInterval(id); }, 250);
@@ -306,17 +280,14 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     console.log("Events mapped:", events.length);
 
     renderMarkers();
-
-
     renderList();
 
     loadingBadge.style.display='none';
-    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
+    setTimeout(()=>map.invalidateSize(), 400);
   } catch (e) {
     console.error("CSV load error:", e);
     loadingBadge.textContent = 'Failed to load events.';
   }
 
   setChevron();
-  updateHud();
 });
