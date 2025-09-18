@@ -1,6 +1,10 @@
 // ===== Config =====
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
 
+// USA bounds (CONUS-ish)
+const USA_BOUNDS = L.latLngBounds([ [24.396308, -124.848974], [49.384358, -66.885444] ]);
+const AUTO_FIT_ON_LOAD = false; // <-- keep initial view on USA, not full marker extent
+
 // ===== State =====
 let map, layers, events = [], userLoc = null;
 
@@ -19,9 +23,8 @@ const chkPast = document.getElementById('chkPast');
 const chkSoon = document.getElementById('chkSoon');
 const chkFuture = document.getElementById('chkFuture');
 const loadingBadge = document.getElementById('loading');
-// Default: hide past events in the LIST (map can still show them via checkbox)
-chkPast.checked = false;
-
+const resetBtn = document.getElementById('resetBtn');
+const hud = document.getElementById('hud');
 
 // ===== Utils =====
 function escapeHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
@@ -35,13 +38,14 @@ function setChevron(){
   chev.textContent = (appEl.classList.contains('collapsed') && !isMobile())
                   || (!appEl.classList.contains('drawer-open') && isMobile()) ? '>' : '<';
 }
+function updateHud(){
+  if (!map) return;
+  const c = map.getCenter();
+  hud.textContent = `zoom: ${map.getZoom()} | center: ${c.lat.toFixed(3)}, ${c.lng.toFixed(3)} | markers: ${events.length}`;
+}
 
 // ===== Map init =====
-function initMap(){
-  map = L.map('map',{scrollWheelZoom:true}).setView([37.8,-96],4);
-
-  // Try default OSM; if tiles blocked for some reason you can switch URL to /hot/ variant
- function addTilesWithFallback() {
+function addTilesWithFallback() {
   let activeLayer;
 
   function useOSM() {
@@ -63,22 +67,37 @@ function initMap(){
     activeLayer.on('load', onLoad);
   }
 
+  function useCarto() {
+    if (activeLayer) { activeLayer.off(); map.removeLayer(activeLayer); }
+    activeLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors & CARTO'
+    }).addTo(map);
+    activeLayer.on('load', onLoad);
+  }
+
   function onError() {
     console.warn('OSM tiles blocked; switching to HOT layer');
     useHot();
   }
   function onSecondError() {
-    console.error('Both tile providers failed to load.');
+    console.warn('HOT tiles failed; trying Carto basemap');
+    useCarto();
   }
   function onLoad() {
-    // nudge map once tiles begin loading to render immediately
-    requestAnimationFrame(()=>map.invalidateSize());
+    requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
   }
 
   useOSM();
 }
 
+function initMap(){
+  map = L.map('map',{scrollWheelZoom:true});
+  addTilesWithFallback();
   map.zoomControl.setPosition('bottomright');
+
+  // Start focused on USA (requested)
+  map.fitBounds(USA_BOUNDS, { padding: [20,20] });
 
   // Priority panes (orange > green > gray)
   map.createPane('paneSoon');     map.getPane('paneSoon').style.zIndex = 650;
@@ -90,8 +109,8 @@ function initMap(){
              upcoming: L.layerGroup().addTo(map) };
 
   // Invalidate after layout settles + watchdog
-  requestAnimationFrame(()=>map.invalidateSize());
-  setTimeout(()=>map.invalidateSize(), 400);
+  requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
+  setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
 
   // Desktop/iframe watchdog: if container is tiny at init, force pixel height
   const mapDiv = document.getElementById('map');
@@ -100,7 +119,7 @@ function initMap(){
     console.warn('Map container small at init, forcing 820px height (desktop fallback)');
     mapDiv.style.height = '820px';
     document.getElementById('app').style.height = 'auto';
-    setTimeout(()=>map.invalidateSize(), 50);
+    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
   }
 }
 
@@ -156,12 +175,16 @@ function renderMarkers(){
   if (!map.hasLayer(layers.soon)) map.addLayer(layers.soon);
   if (!map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
 
-  // Auto-zoom to all markers (padding + reasonable maxZoom)
-  if (boundsArr.length) {
-    const b = L.latLngBounds(boundsArr);
-    map.fitBounds(b, { padding: [28, 28], maxZoom: 7 });
-    setTimeout(()=>map.invalidateSize(), 250);
+  // On load, keep USA view (do not auto-fit), but allow Reset button to fit later
+  if (AUTO_FIT_ON_LOAD) {
+    if (boundsArr.length) {
+      const b = L.latLngBounds(boundsArr);
+      map.fitBounds(b, { padding: [28, 28], maxZoom: 7 });
+    } else {
+      map.fitBounds(USA_BOUNDS, { padding: [20,20] });
+    }
   }
+  setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 250);
 }
 
 function renderList(){
@@ -184,14 +207,29 @@ function renderList(){
 }
 
 // ===== UI wiring =====
-function openDrawer(){ appEl.classList.remove('collapsed'); appEl.classList.add('drawer-open'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
-function closeDrawer(){ appEl.classList.remove('drawer-open'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
+function openDrawer(){ appEl.classList.remove('collapsed'); appEl.classList.add('drawer-open'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
+function closeDrawer(){ appEl.classList.remove('drawer-open'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
 function toggleList(){
   if (isMobile()) { appEl.classList.contains('drawer-open') ? closeDrawer() : openDrawer(); }
-  else { appEl.classList.toggle('collapsed'); setChevron(); setTimeout(()=>map.invalidateSize(),260); }
+  else { appEl.classList.toggle('collapsed'); setChevron(); setTimeout(()=>{ map.invalidateSize(); updateHud(); },260); }
 }
 toggleListFloating.addEventListener('click', toggleList);
 backdrop.addEventListener('click', closeDrawer);
+
+// Reset view (fit to all markers)
+resetBtn.addEventListener('click', ()=>{
+  if (events.length) {
+    const b = L.latLngBounds(events.map(e => [e.lat, e.lng]));
+    map.fitBounds(b, { padding: [28,28], maxZoom: 7 });
+  } else {
+    map.fitBounds(USA_BOUNDS, { padding: [20,20] });
+  }
+  // Ensure groups reflect checkboxes
+  if (chkPast.checked && !map.hasLayer(layers.past)) map.addLayer(layers.past);
+  if (chkSoon.checked && !map.hasLayer(layers.soon)) map.addLayer(layers.soon);
+  if (chkFuture.checked && !map.hasLayer(layers.upcoming)) map.addLayer(layers.upcoming);
+  setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 150);
+});
 
 // Location controls
 function enableDistanceSort(){
@@ -206,7 +244,7 @@ locBtn.addEventListener('click',()=>{
       localStorage.setItem('iw_user_loc',JSON.stringify(userLoc));
       L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
         .addTo(map).bindPopup('You are here').openPopup();
-      enableDistanceSort(); renderList();
+      enableDistanceSort(); renderList(); updateHud();
     },
     err=>{ alert("Couldn’t get your location ("+err.message+")"); },
     { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
@@ -223,12 +261,12 @@ setLocBtn.addEventListener('click', async ()=>{
     L.circleMarker([userLoc.lat,userLoc.lng],{radius:6,color:'#1976d2',weight:2,fillColor:'#1976d2',fillOpacity:0.6})
       .addTo(map).bindPopup('Your location set').openPopup();
     map.setView([userLoc.lat,userLoc.lng],8);
-    enableDistanceSort(); renderList();
+    enableDistanceSort(); renderList(); updateHud();
   }catch(e){ alert('Could not find that place.'); }
 });
 
-searchInput.addEventListener('input', renderList);
-sortSel.addEventListener('change', renderList);
+searchInput.addEventListener('input', ()=>{ renderList(); });
+sortSel.addEventListener('change', ()=>{ renderList(); });
 
 // Checkbox toggles update map and list
 [chkPast,chkSoon,chkFuture].forEach(chk=>{
@@ -236,13 +274,17 @@ sortSel.addEventListener('change', renderList);
     if(chkPast.checked) map.addLayer(layers.past); else map.removeLayer(layers.past);
     if(chkSoon.checked) map.addLayer(layers.soon); else map.removeLayer(layers.soon);
     if(chkFuture.checked) map.addLayer(layers.upcoming); else map.removeLayer(layers.upcoming);
-    renderList();
+    renderList(); updateHud();
   });
 });
 
 // ===== Boot =====
 window.addEventListener('DOMContentLoaded', async ()=>{
   initMap();
+
+  // Default: hide past on first load (both list & map)
+  chkPast.checked = false;
+  map.removeLayer(layers.past);
 
   // Extra nudge loop (handles late CSS/layout)
   let ticks=0; const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=6) clearInterval(id); }, 250);
@@ -272,15 +314,16 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     events = rows.map(rowToEvent).filter(Boolean);
     console.log("Events mapped:", events.length);
 
-    renderMarkers();        // <- creates markers + auto-fit to bounds
+    renderMarkers();            // creates markers (no auto-fit at load)
     renderList();
 
     loadingBadge.style.display='none';
-    setTimeout(()=>map.invalidateSize(), 400);
+    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
   } catch (e) {
     console.error("CSV load error:", e);
     loadingBadge.textContent = 'Failed to load events.';
   }
 
   setChevron();
+  updateHud();
 });
