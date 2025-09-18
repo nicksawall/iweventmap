@@ -67,10 +67,7 @@ body { background:#dde6f1; } /* debug background */
   position:absolute; top:12px; right:12px; z-index:1004;
   border:1px solid #ddd; padding:6px 8px; background:#ffffffcc; border-radius:6px; cursor:pointer;
 }
-.hud{
-  position:absolute; bottom:12px; right:12px; z-index:1004;
-  background:#ffffffcc; border:1px solid #ddd; padding:4px 6px; border-radius:6px; font:12px system-ui;
-}
+
 
 /* Drawer toggle */
 #toggleListFloating {
