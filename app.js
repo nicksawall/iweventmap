@@ -24,7 +24,7 @@ const chkSoon = document.getElementById('chkSoon');
 const chkFuture = document.getElementById('chkFuture');
 const loadingBadge = document.getElementById('loading');
 const resetBtn = document.getElementById('resetBtn');
-const hud = document.getElementById('hud');
+
 
 // ===== Utils =====
 function escapeHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
@@ -38,11 +38,7 @@ function setChevron(){
   chev.textContent = (appEl.classList.contains('collapsed') && !isMobile())
                   || (!appEl.classList.contains('drawer-open') && isMobile()) ? '>' : '<';
 }
-function updateHud(){
-  if (!map) return;
-  const c = map.getCenter();
-  hud.textContent = `zoom: ${map.getZoom()} | center: ${c.lat.toFixed(3)}, ${c.lng.toFixed(3)} | markers: ${events.length}`;
-}
+
 
 // ===== Map init =====
 function ensureDesktopHeight(){
