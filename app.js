@@ -19,6 +19,9 @@ const chkPast = document.getElementById('chkPast');
 const chkSoon = document.getElementById('chkSoon');
 const chkFuture = document.getElementById('chkFuture');
 const loadingBadge = document.getElementById('loading');
+// Default: hide past events in the LIST (map can still show them via checkbox)
+chkPast.checked = false;
+
 
 // ===== Utils =====
 function escapeHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
