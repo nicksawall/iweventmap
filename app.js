@@ -45,37 +45,47 @@ function updateHud(){
 }
 
 // ===== Map init =====
+function ensureDesktopHeight(){
+  const mapDiv = document.getElementById('map');
+  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
+  if (h < 200 || w < 200) {
+    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
+    mapDiv.style.height = '820px';
+    document.getElementById('app').style.height = 'auto';
+    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
+  }
+}
+
 function initMap(){
   // Ensure base heights
   document.documentElement.style.height = '100%';
   document.body.style.minHeight = '100vh';
 
- map = L.map('map', {
-  scrollWheelZoom: true,
-  fadeAnimation: false,
-  zoomAnimation: false,
-  markerZoomAnimation: false
-});
+  map = L.map('map',{
+    scrollWheelZoom: true,
+    fadeAnimation: false,
+    zoomAnimation: false,
+    markerZoomAnimation: false
+  });
   map.zoomControl.setPosition('bottomright');
 
-  // Single, reliable CARTO basemap
+  // CARTO basemap, no fades
   const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors & CARTO',
-  opacity: 1,
-  updateWhenIdle: false,     // paint during movement
-  updateWhenZooming: false,  // no fade-in cycle
-  keepBuffer: 2              // keep tiles around during view changes
-}).addTo(map);
-carto.on('load', ()=>console.log('Basemap tiles loaded (CARTO).'));
-carto.on('tileload', ()=>console.log('Tile loaded.'));
-carto.on('tileerror', (e)=>console.warn('Tile error (CARTO):', e));
-
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors & CARTO',
+    opacity: 1,
+    updateWhenIdle: false,
+    updateWhenZooming: false,
+    keepBuffer: 2
+  }).addTo(map);
+  carto.on('load', ()=>console.log('Basemap tiles loaded (CARTO).'));
+  carto.on('tileload', ()=>console.log('Tile loaded.'));
+  carto.on('tileerror', (e)=>console.warn('Tile error (CARTO):', e));
 
   // Start focused on USA
   map.fitBounds(USA_BOUNDS, { padding: [20,20] });
-setTimeout(()=>map.invalidateSize(), 50);
-setTimeout(()=>map.invalidateSize(), 300);
+  setTimeout(()=>map.invalidateSize(), 50);
+  setTimeout(()=>map.invalidateSize(), 300);
 
   // Priority panes (orange > green > gray)
   map.createPane('paneSoon');     map.getPane('paneSoon').style.zIndex = 650;
@@ -86,25 +96,9 @@ setTimeout(()=>map.invalidateSize(), 300);
              soon: L.layerGroup().addTo(map),
              upcoming: L.layerGroup().addTo(map) };
 
-  // DEBUG: place a marker in Kansas to verify rendering stack
-  const debugM = L.circleMarker([39.0, -96.0], { radius: 7, color:'#1976d2', fillColor:'#1976d2', fillOpacity:0.8, weight:2 })
-    .bindPopup('Leaflet rendering check: if you see this, markers render OK.')
-    .addTo(map);
-  setTimeout(()=>debugM.openPopup(), 300);
-
   requestAnimationFrame(()=>{ map.invalidateSize(); updateHud(); });
   setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 400);
-
-  // Desktop/iframe watchdog: if container is tiny at init, force pixel height
-  const mapDiv = document.getElementById('map');
-  const h = mapDiv.clientHeight, w = mapDiv.clientWidth;
-  if (h < 200 || w < 200) {
-    console.warn('Map container small at init, forcing 820px height (desktop fallback)');
-    mapDiv.style.height = '820px';
-    document.getElementById('app').style.height = 'auto';
-    setTimeout(()=>{ map.invalidateSize(); updateHud(); }, 50);
-  }
-
+  ensureDesktopHeight();
   window.addEventListener('resize', ()=>{ map.invalidateSize(); updateHud(); });
 }
 
@@ -257,7 +251,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // Default: hide past on first load (both list & map)
   chkPast.checked = false;
-  // We'll render markers after CSV is parsed and then remove past layer
 
   // Extra nudge loop (handles late CSS/layout)
   let ticks=0; const id=setInterval(()=>{ map.invalidateSize(); if(++ticks>=8) clearInterval(id); }, 250);
@@ -288,7 +281,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     console.log("Events mapped:", events.length);
 
     renderMarkers();
-    // Hide past on map to match list default
+    // Match list default: hide past layer
     map.removeLayer(layers.past);
 
     renderList();
