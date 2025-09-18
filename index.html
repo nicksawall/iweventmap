@@ -184,6 +184,14 @@
     function classifyByDate(startISO){const now=new Date();const start=new Date(startISO);if(isNaN(start))return{status:'unknown',color:'#3367d6'};if(start<now)return{status:'past',color:'#9aa0a6'};const days=(start-now)/(1000*60*60*24);if(days<=30)return{status:'soon',color:'#f2994a'};return{status:'upcoming',color:'#34a853'};}
     function matchesQuery(ev,q){if(!q)return true;q=q.toLowerCase();return ev.title.toLowerCase().includes(q)||(ev.where||'').toLowerCase().includes(q);}
     function isMobile(){ return window.matchMedia('(max-width: 900px)').matches; }
+    function debug(msg, data){
+  const el = document.getElementById('loading');
+  el.style.display = 'block';
+  el.textContent = (typeof msg === 'string' ? msg : JSON.stringify(msg)) +
+                   (data ? ' ' + JSON.stringify(data).slice(0, 200) : '');
+  console.log('[IWMap]', msg, data || '');
+}
+
 
     // ---------- Config ----------
     const SHEET_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-ZxzOQMY6WOlSdttZWaxy-UUQEXdnHEvdXcuRoqDlek4ziPNTSgMgvq-NinaaCuezJ7vzBlm3hOMO/pub?gid=0&single=true&output=csv";
@@ -458,6 +466,15 @@
     // Init after full page load (ensures layout is final on desktop)
     window.addEventListener('load',()=>{
       initMap();
+      // brute-force remeasure: if container height was unstable at init, this fixes it
+(function nudgeMap(){
+  let ticks = 0;
+  const id = setInterval(()=>{
+    map.invalidateSize();
+    if (++ticks >= 6) clearInterval(id); // ~1.5s total
+  }, 250);
+})();
+
       if (userLoc) showUserMarker(userLoc, 'Your saved location');
       updateSortAvailability();
       Papa.SCRIPT_PATH = ''; // CSP/iframe friendliness
