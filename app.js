@@ -41,9 +41,42 @@ function initMap(){
   map = L.map('map',{scrollWheelZoom:true}).setView([37.8,-96],4);
 
   // Try default OSM; if tiles blocked for some reason you can switch URL to /hot/ variant
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19, attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(map);
+ function addTilesWithFallback() {
+  let activeLayer;
+
+  function useOSM() {
+    activeLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    activeLayer.on('tileerror', onError);
+    activeLayer.on('load', onLoad);
+  }
+
+  function useHot() {
+    if (activeLayer) { activeLayer.off(); map.removeLayer(activeLayer); }
+    activeLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors, Tiles style by HOT'
+    }).addTo(map);
+    activeLayer.on('tileerror', onSecondError);
+    activeLayer.on('load', onLoad);
+  }
+
+  function onError() {
+    console.warn('OSM tiles blocked; switching to HOT layer');
+    useHot();
+  }
+  function onSecondError() {
+    console.error('Both tile providers failed to load.');
+  }
+  function onLoad() {
+    // nudge map once tiles begin loading to render immediately
+    requestAnimationFrame(()=>map.invalidateSize());
+  }
+
+  useOSM();
+}
 
   map.zoomControl.setPosition('bottomright');
 
