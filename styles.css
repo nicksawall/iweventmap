@@ -56,7 +56,7 @@ body { background:#dde6f1; }
   border: 1px solid #ddd; border-radius: 8px;
   padding: 6px 10px; font-size: 13px;
 }
-.map-overlay label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.map-overlay label {line-height: 1.2; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 
 /* Logo chips */
 .dot-img {
