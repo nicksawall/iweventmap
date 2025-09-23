@@ -35,7 +35,7 @@ function matchesQuery(ev,q){if(!q)return true;q=q.toLowerCase();return ev.title.
 function isMobile(){ return window.matchMedia('(max-width: 900px)').matches; }
 function setChevron(){
   chev.textContent = (appEl.classList.contains('collapsed') && !isMobile())
-                  || (!appEl.classList.contains('drawer-open') && isMobile()) ? 'Filter >' : '< Filter';
+                  || (!appEl.classList.contains('drawer-open') && isMobile()) ? 'Filter By Date or Zip >' : '< Filter By Date or Zip';
 }
 
 // ===== Icons =====
