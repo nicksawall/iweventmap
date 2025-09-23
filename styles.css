@@ -60,8 +60,8 @@ body { background:#dde6f1; }
 
 /* Logo chips */
 .dot-img {
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   vertical-align: middle;
 }
