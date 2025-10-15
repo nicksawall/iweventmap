@@ -19,7 +19,18 @@
   .date-badge{border:1px solid var(--border);border-radius:10px;padding:.4rem .6rem;text-align:center;min-width:64px;line-height:1.1}
   .date-badge .mon{font-size:.7rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
   .date-badge .day{font-size:1.2rem;font-weight:700}
-  .title{font-weight:700;font-size:1.05rem;line-height:1.25}
+ .title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;   /* limit to 5 lines */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: calc(1.25em * 5); /* keeps uniform height for all titles */
+}
+
   .desc{padding:0 .9rem .9rem;color:#2b2f36;font-size:.95rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .actions{display:flex;gap:.5rem;padding:.9rem;border-top:1px solid var(--border);background:#fafbfc;flex-wrap:wrap}
   .btn{appearance:none;text-decoration:none;border:1px solid var(--border);padding:.55rem .75rem;border-radius:10px;font-weight:600;font-size:.95rem;color:var(--text);background:#fff}
@@ -220,3 +231,4 @@
 </script>
 </body>
 </html>
+
