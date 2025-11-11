@@ -124,18 +124,16 @@
     /(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>'
   );
 
-  // Extract the FIRST URL and remove that one from the text (leave others)
-  function extractFirstUrlAndStrip(text){
-    if (!text) return { url: "", text: "" };
-    const s = String(text);
-    const rx = /(https?:\/\/[^\s]+)/i;
-    const m = s.match(rx);
-    if (!m) return { url: "", text: s };
-    const url = m[0];
-    // Remove only the first match, keep the rest for linkify
-    const stripped = s.replace(url, "").replace(/\s{2,}/g, " ").trim();
-    return { url, text: stripped };
-  }
+// Extract first and second URLs from description, and strip them out of the text
+function extractLinks(text) {
+  if (!text) return { first: "", second: "", text: "" };
+  const s = String(text);
+  const urls = s.match(/https?:\/\/[^\s]+/g) || [];
+  const first = urls[0] || "";
+  const second = urls[1] || "";
+  const stripped = s.replace(first, "").replace(second, "").replace(/\s{2,}/g, " ").trim();
+  return { first, second, text: stripped };
+}
 
   function makeICS(ev){
     if (!ev || !ev.startDate || isNaN(ev.startDate)) return "";
@@ -161,22 +159,23 @@
     for (const ev of events){
       const {mon,day} = fmtPieces(ev.startDate);
 
-      // Pull first URL from description, and strip it from the body
-      const { url: detailUrl, text: strippedDesc } = extractFirstUrlAndStrip(ev.desc || "");
+// Extract first (chapter) and second (register) links from description
+const { first: chapterUrl, second: registerUrl, text: strippedDesc } = extractLinks(ev.desc || "");
 
-      const card = document.createElement("article");
-      card.className = "card";
-      card.innerHTML = `
-        <div class="top">
-          <div class="date-badge" aria-label="${ev.startDate.toDateString()}">
-            <div class="mon">${mon}</div><div class="day">${day}</div>
-          </div>
-          <div><div class="title">${escapeHtml(ev.title||"Untitled Event")}</div></div>
-        </div>
-        <div class="actions">
-          ${detailUrl ? `<a class="btn primary" href="${detailUrl}" target="_blank" rel="noopener">Register Here!</a>` : ""}
-          ${ev.addIcs ? `<a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>` : ""}
-        </div>`;
+const card = document.createElement("article");
+card.className = "card";
+card.innerHTML = `
+  <div class="top">
+    <div class="date-badge" aria-label="${ev.startDate.toDateString()}">
+      <div class="mon">${mon}</div><div class="day">${day}</div>
+    </div>
+    <div><div class="title">${escapeHtml(ev.title || "Untitled Event")}</div></div>
+  </div>
+  <div class="actions">
+    ${chapterUrl ? `<a class="btn" href="${chapterUrl}" target="_blank" rel="noopener">Chapter Page</a>` : ""}
+    ${registerUrl ? `<a class="btn primary" href="${registerUrl}" target="_blank" rel="noopener">Register Here</a>` : ""}
+    ${ev.addIcs ? `<a class="btn" href="${ev.addIcs}" download="${slug(ev.title)}.ics">Add to Calendar</a>` : ""}
+  </div>`;
       frag.appendChild(card);
     }
     grid.appendChild(frag);
