@@ -123,6 +123,13 @@ function rowToEvent(r){
   const lat = parseFloat(r.lat), lng = parseFloat(r.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
+  // Pull first & second URLs from description (clean HTML first)
+  const rawDesc = r.description || '';
+  const cleanDesc = rawDesc.replace(/<[^>]+>/g, ' ');
+  const urls = cleanDesc.match(/https?:\/\/[^\s"'<]+/g) || [];
+  const landing = r.landingLink || urls[0] || '';   // first = Chapter Page
+  const register = r.registerLink || urls[1] || ''; // second = Register Here
+
   const klass = classifyByDate(r.start);
   return {
     title: (r.title || 'Untitled Event').trim(),
@@ -130,8 +137,11 @@ function rowToEvent(r){
     when: formatDate(r.start) + (r.end ? " – " + formatDate(r.end) : ""),
     where: r.location || '',
     link: r.htmlLink || '',
-    rawDesc: r.description || '',
-    desc: linkify(escapeHtml(r.description || '')),
+    // keep description available (not required for popup)
+    rawDesc,
+    desc: linkify(escapeHtml(rawDesc)),
+    landing,
+    register,
     lat, lng, color: klass.color, status: klass.status, marker: null
   };
 }
@@ -146,6 +156,8 @@ function renderMarkers(){
          <h3>${escapeHtml(ev.title)}</h3>
          ${ev.when ? `<div class="meta"><strong>When:</strong> ${ev.when}</div>` : ""}
          ${ev.where ? `<div class="meta"><strong>Where:</strong> ${escapeHtml(ev.where)}</div>` : ""}
+         ${ev.landing  ? `<a href="${encodeURI(ev.landing)}"  target="_blank" rel="noopener" class="btn-link">Chapter Page</a><br>` : ""}
+         ${ev.register ? `<a href="${encodeURI(ev.register)}" target="_blank" rel="noopener" class="btn-link">Register Here</a><br>` : ""}
          ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>` : ""}
          ${ev.rawDesc ? `<div class="desc">${ev.desc}</div>` : ""}
        </div>`;
@@ -193,7 +205,11 @@ function renderList(){
       </h4>
       <div class="meta">${ev.when}</div>
       ${ev.where ? `<div class="meta">${escapeHtml(ev.where)}</div>` : ''}
-      ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">Open in Google Calendar</a></div>` : ''}
+      <div class="meta links">
+        ${ev.landing  ? `<a class="list-btn" href="${encodeURI(ev.landing)}"  target="_blank" rel="noopener">Chapter Page</a>` : ''}
+        ${ev.register ? `<a class="list-btn" href="${encodeURI(ev.register)}" target="_blank" rel="noopener">Register Here</a>` : ''}
+        ${ev.link     ? `<a class="list-btn" href="${encodeURI(ev.link)}"     target="_blank" rel="noopener">Calendar</a>` : ''}
+      </div>
     </div>`
   ).join('');
 }
@@ -316,3 +332,4 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   setChevron();
 });
+
