@@ -159,7 +159,6 @@ function renderMarkers(){
          ${ev.landing  ? `<a href="${encodeURI(ev.landing)}"  target="_blank" rel="noopener" class="btn-link">Chapter Page</a><br>` : ""}
          ${ev.register ? `<a href="${encodeURI(ev.register)}" target="_blank" rel="noopener" class="btn-link">Register Here</a><br>` : ""}
          ${ev.link ? `<div class="meta"><a href="${encodeURI(ev.link)}" target="_blank" rel="noopener">View in Google Calendar</a></div>` : ""}
-         ${ev.rawDesc ? `<div class="desc">${ev.desc}</div>` : ""}
        </div>`;
 
     const paneName = ev.status==='soon' ? 'paneSoon' : ev.status==='upcoming' ? 'paneUpcoming' : 'panePast';
