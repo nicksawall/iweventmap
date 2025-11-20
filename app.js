@@ -83,7 +83,6 @@ function initMap(){
     zoomAnimation: false,
     touchZoom: true,
     markerZoomAnimation: false
-    map.gestureHandling.enable();
   });
   map.zoomControl.setPosition('bottomright');
 
