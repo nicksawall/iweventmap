@@ -78,9 +78,10 @@ function initMap(){
   document.body.style.minHeight = '100vh';
 
   map = L.map('map',{
-    scrollWheelZoom: true,
+    scrollWheelZoom: false,
     fadeAnimation: false,
     zoomAnimation: false,
+    touchZoom: true,
     markerZoomAnimation: false
   });
   map.zoomControl.setPosition('bottomright');
