@@ -77,11 +77,11 @@ function initMap(){
   document.documentElement.style.height = '100%';
   document.body.style.minHeight = '100vh';
 
-  map = L.map('map',{
-    scrollWheelZoom: false,
+  map = L.map('map', {
+    // Let GestureHandling manage scroll and touch behavior
+    gestureHandling: true,
     fadeAnimation: false,
     zoomAnimation: false,
-    touchZoom: true,
     markerZoomAnimation: false
   });
   map.zoomControl.setPosition('bottomright');
@@ -118,6 +118,7 @@ function initMap(){
 
   window.addEventListener('resize', ()=>map.invalidateSize());
 }
+
 
 // ===== Data mapping =====
 function rowToEvent(r){
