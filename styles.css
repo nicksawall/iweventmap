@@ -56,7 +56,14 @@ body { background:#dde6f1; }
   border: 1px solid #ddd; border-radius: 8px;
   padding: 6px 10px; font-size: 13px;
 }
-.map-overlay label {line-height: 1.2; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.map-overlay label {
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
 
 /* Logo chips */
 .dot-img {
@@ -98,8 +105,21 @@ body { background:#dde6f1; }
 #sortSel { min-width: 150px; }
 
 /* List items */
-.item { padding: 8px 6px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; background:#fff; }
-.item h4 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+.item {
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background:#fff;
+}
+.item h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .item h4 img { width: 14px; height: 14px; object-fit: contain; }
 .meta { font-size: 12.5px; color: #444; }
 
@@ -111,11 +131,12 @@ body { background:#dde6f1; }
 /* Mobile drawer + dynamic viewport height */
 @media (max-width: 900px) {
   :root { --panel-w: 86vw; }
-#app {
-  display: block;
-  height: auto;   /* let it shrink to map height */
-  min-height: 0;
-}
+
+  #app {
+    display: block;
+    height: auto;
+    min-height: 0;
+  }
 
   #sidebar {
     position: fixed; left: 0; top: 0;
@@ -136,17 +157,23 @@ body { background:#dde6f1; }
   }
   #app.drawer-open #backdrop { opacity: 1; pointer-events: auto; }
 
-  /* MOBILE MAP SIZE — keeps a clean continental-US view */
-#map {
-  width: 100%;
-  aspect-ratio: 3 / 2;   /* wider than tall → better CONUS framing */
-  height: auto;
-  min-height: 320px;     /* don’t get too small */
-  max-height: 520px;     /* prevents giant vertical map */
-}
+  /* MOBILE MAP SIZE — override desktop height and use aspect ratio */
+  #map {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    aspect-ratio: 3 / 2;   /* wider than tall → better CONUS framing */
+  }
 
   .map-overlay { top: 10px; left: 10px; font-size: 14px; }
-  #toggleListFloating { top: 56px; left: 10px; padding: 10px 12px; font-size: 18px; z-index: 1004; }
+  #toggleListFloating {
+    top: 56px;
+    left: 10px;
+    padding: 10px 12px;
+    font-size: 18px;
+    z-index: 1004;
+  }
 
   #app.collapsed.drawer-open #sidebar { opacity: 1; pointer-events: auto; }
 }
@@ -158,4 +185,3 @@ body { background:#dde6f1; }
   padding: 6px 8px; font-size: 12.5px;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
-
