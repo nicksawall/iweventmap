@@ -111,7 +111,12 @@ body { background:#dde6f1; }
 /* Mobile drawer + dynamic viewport height */
 @media (max-width: 900px) {
   :root { --panel-w: 86vw; }
-  #app { display: block; height: 100dvh; }
+#app {
+  display: block;
+  height: auto;   /* let it shrink to map height */
+  min-height: 0;
+}
+
   #sidebar {
     position: fixed; left: 0; top: 0;
     width: var(--panel-w); height: 100dvh;
