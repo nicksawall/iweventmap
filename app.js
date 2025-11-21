@@ -102,7 +102,7 @@ function initMap(){
   if (isMobile()) {
     // On tall, skinny screens, explicitly set a view
     // Center is nudged a bit north so you see less South America
-    map.setView([40, -96], 4);  // tweak zoom (4 or 5) if you want tighter/looser
+    map.setView([41, -96], 3.5);  // tweak zoom (4 or 5) if you want tighter/looser
   } else {
     // On desktop, keep the nice auto-fit to CONUS
     map.fitBounds(USA_BOUNDS, { padding: [20, 20] });
