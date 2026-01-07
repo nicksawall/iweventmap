@@ -318,12 +318,51 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // Fetch CSV then parse
   try{
-    const resp = await fetch(SHEET_CSV + "&_ts=" + Date.now(), { credentials: "omit", cache: "no-store" });
-    if (!resp.ok) throw new Error("CSV HTTP " + resp.status);
-    const csvText = await resp.text();
+    Papa.parse(SHEET_CSV + "&_ts=" + Date.now(), {
 
-    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-    const rows = (parsed.data || []).filter(r => r && Object.keys(r).length);
+  download: true,
+
+  header: true,
+
+  skipEmptyLines: true,
+
+  complete: function (results) {
+
+    const rows = (results.data || []).filter(r => r && Object.keys(r).length);
+
+    console.log("CSV loaded:", { rows: rows.length, cols: Object.keys(rows[0] || {}) });
+
+    if (rows.length) console.log("CSV sample row:", rows[0]);
+
+
+
+    events = rows.map(rowToEvent).filter(Boolean);
+
+    console.log("Events mapped:", events.length);
+
+
+
+    renderMarkers();
+
+    renderList();
+
+
+
+    loadingBadge.style.display = 'none';
+
+    setTimeout(() => map.invalidateSize(), 400);
+
+  },
+
+  error: function (err) {
+
+    console.error("CSV load error:", err);
+
+    loadingBadge.textContent = 'Failed to load events.';
+
+  }
+
+});
     console.log("CSV loaded:", { rows: rows.length, cols: Object.keys(rows[0] || {}) });
     if (rows.length) console.log("CSV sample row:", rows[0]);
 
