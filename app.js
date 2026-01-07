@@ -316,69 +316,32 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   }catch(_){}
 
-  // Fetch CSV then parse
-  try{
-    Papa.parse(SHEET_CSV + "&_ts=" + Date.now(), {
+   // Fetch CSV then parse (use Papa download mode to avoid CORS)
+  const csvUrl = SHEET_CSV + "&_cb=" + Math.floor(Date.now() / 60000); // cache-bust once per minute
 
-  download: true,
+  Papa.parse(csvUrl, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
 
-  header: true,
+    complete: function (results) {
+      const rows = (results.data || []).filter(r => r && Object.keys(r).length);
 
-  skipEmptyLines: true,
+      console.log("CSV loaded:", { rows: rows.length, cols: Object.keys(rows[0] || {}) });
+      if (rows.length) console.log("CSV sample row:", rows[0]);
 
-  complete: function (results) {
+      events = rows.map(rowToEvent).filter(Boolean);
+      console.log("Events mapped:", events.length);
 
-    const rows = (results.data || []).filter(r => r && Object.keys(r).length);
+      renderMarkers();
+      renderList();
 
-    console.log("CSV loaded:", { rows: rows.length, cols: Object.keys(rows[0] || {}) });
+      if (loadingBadge) loadingBadge.style.display = 'none';
+      setTimeout(() => map.invalidateSize(), 400);
+    },
 
-    if (rows.length) console.log("CSV sample row:", rows[0]);
-
-
-
-    events = rows.map(rowToEvent).filter(Boolean);
-
-    console.log("Events mapped:", events.length);
-
-
-
-    renderMarkers();
-
-    renderList();
-
-
-
-    loadingBadge.style.display = 'none';
-
-    setTimeout(() => map.invalidateSize(), 400);
-
-  },
-
-  error: function (err) {
-
-    console.error("CSV load error:", err);
-
-    loadingBadge.textContent = 'Failed to load events.';
-
-  }
-
-});
-    console.log("CSV loaded:", { rows: rows.length, cols: Object.keys(rows[0] || {}) });
-    if (rows.length) console.log("CSV sample row:", rows[0]);
-
-    events = rows.map(rowToEvent).filter(Boolean);
-    console.log("Events mapped:", events.length);
-
-    renderMarkers();
-    renderList();
-
-    loadingBadge.style.display='none';
-    setTimeout(()=>map.invalidateSize(), 400);
-  } catch (e) {
-    console.error("CSV load error:", e);
-    loadingBadge.textContent = 'Failed to load events.';
-  }
-
-  setChevron();
-});
-
+    error: function (err) {
+      console.error("CSV load error:", err);
+      if (loadingBadge) loadingBadge.textContent = "Failed to load events.";
+    }
+  });
