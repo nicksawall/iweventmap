@@ -345,3 +345,5 @@ window.addEventListener('DOMContentLoaded', async ()=>{
       if (loadingBadge) loadingBadge.textContent = "Failed to load events.";
     }
   });
+setChevron();
+});
