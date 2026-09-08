@@ -87,7 +87,7 @@ function initMap(){
   map.zoomControl.setPosition('bottomright');
 
   // CARTO basemap, no fades
-  const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_32gq_1_d115a133c531074de9559be7', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors & CARTO',
     opacity: 1,
